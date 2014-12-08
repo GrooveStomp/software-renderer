@@ -1,2 +1,5 @@
 Debug/
-Sdl2dGraphics/Debug/
+Sdl2dGraphics/Debug/git
+\#*
+\.#*
+build/
