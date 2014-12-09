@@ -128,33 +128,50 @@ GenerateScanlines(triangle* Triangles, int NumTriangles, scanline* Scanlines) {
 }
 
 void
-Rasterize(int* DisplayBuffer, scanline* Scanlines) {
-  // NOTE(AARON):
-  // This is a local stack implementation to track what polygon we are currently
-  // rendering.
-  triangle* HitStack[DISPLAY_WIDTH];
-  triangle* Empty = HitStack[0];
-  triangle* Next = Empty;
+PutPixel(int* DisplayBuffer, int X, int Y, int Pixel) {
+  DisplayBuffer[(Y * DISPLAY_WIDTH) + X] = Pixel;
+}
 
-  // Basic algorithm:
-  // Iterate through the columns of every display row:
-  //   If the current column matches with an intersection of a polygon:
-  //     Get the polygon
-  //     See if we are colliding, or ending the collision.
-  //     If we are colliding, then set a new material (on the material stack)
-  //     If we are ending collision, then pop the material (off of the material stack).
+// TODO(AARON):
+// This looks like the algorithm is mostly in place, but it's definitely not
+// working yet.  Time to start debugging!
+//
+void
+Rasterize(int* DisplayBuffer, scanline* Scanlines) {
+  stack CurrentTriangleStack = {};
+  stack CurrentMaterialStack = {};
 
   for (int i=0; i<ArrayCount(Scanlines); ++i) {
     scanline* Scanline = &Scanlines[i];
-    for (int x=0; x<Scanline->NumIntersections; ++x) {
-      // TODO(AARON): Rasterizing goes here.
+
+    map TriangleMap = {};
+    for (int x=0; x<DISPLAY_WIDTH; x++) {
+      for (int x2=0; x2<Scanline->NumIntersections; ++x) {
+        scanline_intersection Intersection = Scanline->Intersections[x2];
+        if (Intersection.X == x) {
+          Add(&TriangleMap, x, Intersection.Triangle);
+        }
+      }
+
+      triangle* Triangle;
+      if ((Triangle = Lookup(&TriangleMap, x))) {
+        if ((triangle*)Top(&CurrentTriangleStack) == Triangle) {
+          Pop(&CurrentTriangleStack);
+        }
+        else {
+          Push(&CurrentTriangleStack, (void*)&Triangle);
+        }
+
+        Triangle = (triangle*)Top(&CurrentTriangleStack);
+        int32 Color = COLOR_OPAQUE;
+
+        if (Triangle) Color = COLOR_RED;
+        if (!Triangle) Color = COLOR_OPAQUE;
+
+        PutPixel(DisplayBuffer, x, i, Color);
+      }
     }
   }
-}
-
-void
-PutPixel(int* DisplayBuffer, int X, int Y, int Pixel) {
-  DisplayBuffer[(Y * DISPLAY_WIDTH) + X] = Pixel;
 }
 
 global_variable scanline Scanlines[DISPLAY_HEIGHT];
@@ -203,28 +220,29 @@ main(int argc, char** argv) {
   SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &Pitch);
 
   GenerateScanlines(&Triangle, 1, Scanlines);
+  Rasterize(DisplayBuffer, Scanlines);
 
-  int h = 0, w = 0;
-  for (h = 0; h < DISPLAY_HEIGHT; h++) {
-    for (w = 0; w < DISPLAY_WIDTH; w++) {
-      int Color = COLOR_OPAQUE;
+  // int h = 0, w = 0;
+  // for (h = 0; h < DISPLAY_HEIGHT; h++) {
+  //   for (w = 0; w < DISPLAY_WIDTH; w++) {
+  //     int Color = COLOR_OPAQUE;
 
-      if (w < 320 && h < 240) {
-        Color |= COLOR_BLUE;
-      }
-      else if (w > 320 && h < 240) {
-        Color |= COLOR_GREEN;
-      }
-      else if (w < 320 && h > 240) {
-        Color |= COLOR_RED;
-      }
-      else if (w > 320 && h > 240) {
-        Color = COLOR_RED | COLOR_GREEN | COLOR_OPAQUE;
-      }
+  //     if (w < 320 && h < 240) {
+  //       Color |= COLOR_BLUE;
+  //     }
+  //     else if (w > 320 && h < 240) {
+  //       Color |= COLOR_GREEN;
+  //     }
+  //     else if (w < 320 && h > 240) {
+  //       Color |= COLOR_RED;
+  //     }
+  //     else if (w > 320 && h > 240) {
+  //       Color = COLOR_RED | COLOR_GREEN | COLOR_OPAQUE;
+  //     }
 
-      PutPixel(DisplayBuffer, w, h, Color);
-    }
-  }
+  //     PutPixel(DisplayBuffer, w, h, Color);
+  //   }
+  // }
 
   SDL_UnlockTexture(Texture);
 

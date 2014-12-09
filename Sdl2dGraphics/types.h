@@ -109,8 +109,80 @@ struct scanline {
   uint32 NumIntersections;
 };
 
+struct stack {
+  void* Stack[DISPLAY_WIDTH];
+  uint32 Head;
+};
+
+struct map {
+  uint32 Keys[DISPLAY_WIDTH];
+  void* Values[DISPLAY_WIDTH];
+  uint32 Count;
+};
 
 
+//------------------------------------------------------------------------------
+// Stack Operations
+//
+void Init(stack* Stack) {
+  Stack->Head = 0;
+}
+
+bool IsEmpty(stack* Stack) {
+  return (Stack->Head == 0);
+}
+
+uint32 Size(stack* Stack) {
+  return Stack->Head;
+}
+
+bool Push(stack* Stack, void* Object) {
+  if (Stack->Head >= DISPLAY_WIDTH) return false;
+
+  Stack->Stack[Stack->Head] = Object;
+  Stack->Head++;
+  return true;
+}
+
+void* Pop(stack* Stack) {
+  if (Stack->Head <= 0) return NULL;
+
+  void* Result = Stack->Stack[Stack->Head];
+  Stack->Head--;
+  return Result;
+}
+
+void* Top(stack* Stack) {
+  if(Stack->Head <= 0) return NULL;
+
+  return Stack->Stack[Stack->Head];
+}
+
+//------------------------------------------------------------------------------
+// Map operations
+//
+bool Add(map* Map, uint32 Key, triangle* Triangle) {
+  if (Map->Count >= DISPLAY_WIDTH) return false;
+
+  Map->Keys[Map->Count] = Key;
+  Map->Values[Map->Count] = (void*)Triangle;
+  Map->Count++;
+  return true;
+}
+
+triangle* Lookup(map* Map, uint32 Key) {
+  for (int i=0; i < Map->Count; ++i) {
+    if (Map->Keys[i] == Key) {
+      return (triangle*)Map->Values[i];
+    }
+  }
+  return NULL;
+}
+
+
+//------------------------------------------------------------------------------
+// Ray, Point and other similar operations
+//
 point2f Evaluate(ray2d Ray, float T) {
   point2f Result = { 0 };
   Result.X = Ray.X + Ray.Dx * T;
