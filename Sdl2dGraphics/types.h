@@ -41,48 +41,45 @@ enum DISPLAY_SIZE {
   DISPLAY_HEIGHT = 480
 };
 
-struct point2i{
-  int32 X;
-  int32 Y;
-};
-typedef point2i vertex2i;
-typedef point2i vector2i;
-
-struct point2f {
+struct point2d{
   real32 X;
   real32 Y;
 };
-typedef point2f vertex2f;
-typedef point2f vector2f;
+typedef point2d vector2d;
 
 struct ray2d {
   union {
     struct {
-      point2f Pos;
-      point2f Dir;
+      point2d Pos;
+      point2d Dir;
     };
     struct {
-      point2f Start;
-      point2f End;
-    };
-    struct {
-      struct {
-        real32 X;
-        real32 Y;
-      };
-      struct {
-        real32 Dx;
-        real32 Dy;
-      };
+      real32 X;
+      real32 Y;
+      real32 Dx;
+      real32 Dy;
     };
   };
 };
 
-typedef ray2d line_segment;
-typedef ray2d edge;
+struct line_segment {
+  union {
+    struct {
+      point2d Start;
+      point2d End;
+    };
+    struct {
+      real32 StartX;
+      real32 StartY;
+      real32 EndX;
+      real32 EndY;
+    };
+  };
+};
+typedef line_segment edge;
 
 struct triangle {
-  point2i Point[3];
+  point2d Point[3];
 };
 
 struct triangle_edges {
@@ -95,7 +92,7 @@ struct Material {
 
 struct intersection_point {
   bool32 IsIntersection;
-  point2f Intersection;
+  point2d Intersection;
 };
 
 struct scanline_intersection {
@@ -183,26 +180,42 @@ triangle* Lookup(map* Map, uint32 Key) {
 //------------------------------------------------------------------------------
 // Ray, Point and other similar operations
 //
-point2f Evaluate(ray2d Ray, float T) {
-  point2f Result = { 0 };
-  Result.X = Ray.X + Ray.Dx * T;
-  Result.Y = Ray.Y + Ray.Dy * T;
+point2d Add(point2d First, point2d Second) {
+  point2d Result;
+  Result.X = First.X + Second.X;
+  Result.Y = First.Y + Second.Y;
   return Result;
 }
 
-point2f Subtract(point2f Minuend, point2f Subtrahend) {
-  point2f Result = { 0 };
+point2d Apply(point2d Point, real32 T) {
+  point2d Result;
+  Result.X = Point.X * T;
+  Result.Y = Point.Y * T;
+  return Result;
+}
+
+point2d Evaluate(ray2d Ray, real32 T) {
+  return Add(Ray.Pos, Apply(Ray.Dir, T));
+}
+
+point2d Subtract(point2d Minuend, point2d Subtrahend) {
+  point2d Result;
   Result.X = Minuend.X - Subtrahend.X;
   Result.Y = Minuend.Y - Subtrahend.Y;
   return Result;
 }
 
-line_segment FromPoints(point2f Start, point2f End) {
+line_segment FromPoints(point2d Start, point2d End) {
   line_segment Result;
-  Result.X = Start.X;
-  Result.Y = Start.Y;
-  Result.Dx = End.X - Start.X;
-  Result.Dy = End.Y - Start.Y;
+  Result.Start = Start;
+  Result.End = End;
+  return Result;
+}
+
+ray2d FromLineSegment(line_segment Segment) {
+  ray2d Result;
+  Result.Pos = Segment.Start;
+  Result.Dir = Subtract(Segment.End, Segment.Start);
   return Result;
 }
 

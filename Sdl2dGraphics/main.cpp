@@ -34,18 +34,16 @@ calculation for that polygon. Ie., lighting + shading + textures + bump/parallal
 triangle_edges
 EdgesFor(triangle Triangle) {
   triangle_edges Edges;
-  Edges.Edges[0].X  = (float)Triangle.Point[0].X;
-  Edges.Edges[0].Y  = (float)Triangle.Point[0].Y;
-  Edges.Edges[0].Dx = (float)Triangle.Point[1].X;
-  Edges.Edges[0].Dy = (float)Triangle.Point[1].Y;
-  Edges.Edges[1].X  = (float)Triangle.Point[1].X;
-  Edges.Edges[1].Y  = (float)Triangle.Point[1].Y;
-  Edges.Edges[1].Dx = (float)Triangle.Point[2].X;
-  Edges.Edges[1].Dy = (float)Triangle.Point[2].Y;
-  Edges.Edges[2].X  = (float)Triangle.Point[2].X;
-  Edges.Edges[2].Y  = (float)Triangle.Point[2].Y;
-  Edges.Edges[2].Dx = (float)Triangle.Point[0].X;
-  Edges.Edges[2].Dy = (float)Triangle.Point[0].Y;
+
+  Edges.Edges[0].Start = Triangle.Point[0];
+  Edges.Edges[0].End = Triangle.Point[1];
+
+  Edges.Edges[1].Start = Triangle.Point[1];
+  Edges.Edges[1].End = Triangle.Point[2];
+
+  Edges.Edges[2].Start = Triangle.Point[2];
+  Edges.Edges[2].End = Triangle.Point[0];
+
   return Edges;
 }
 
@@ -64,16 +62,17 @@ PositiveXVectorAtHeight(int Height) {
 intersection_point
 Intersect(ray2d Ray, line_segment LineSegment) {
   intersection_point Miss = {};
+  ray2d Line = FromLineSegment(LineSegment);
 
-  real32 C = LineSegment.Dy * LineSegment.X - LineSegment.Dx * LineSegment.Y;
-  real32 Denominator = -LineSegment.Dy*Ray.Dx + LineSegment.Dx*Ray.Dy;
+  real32 C = Line.Dy * Line.X - Line.Dx * Line.Y;
+  real32 Denominator = -Line.Dy*Ray.Dx + Line.Dx*Ray.Dy;
 
   if (Denominator == 0) return Miss;
 
-   real32    Numerator = -(LineSegment.Dy)*Ray.X + LineSegment.Dx*Ray.Y + C;
+   real32    Numerator = -(Line.Dy)*Ray.X + Line.Dx*Ray.Y + C;
    real32            T = -(Numerator / Denominator);
-  point2f Intersection =   Evaluate(Ray, T);
-   real32           T0 =  (Intersection.X - LineSegment.X) / LineSegment.Dx;
+  point2d Intersection =   Evaluate(Ray, T);
+   real32           T0 =  (Intersection.X - Line.X) / Line.Dx;
 
   if (T0 > 1 || T0 < 0) return Miss;
 
@@ -94,34 +93,34 @@ ScanlineIntersectionSort(const void* Left, const void* Right) {
 }
 
 void
-GenerateScanlines(triangle* Triangles, int NumTriangles, scanline* Scanlines) {
+GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) {
   for (int h = 0; h < DISPLAY_HEIGHT; h++) {
-    scanline* Scanline = &Scanlines[h];
-    Scanline->NumIntersections = 0;
+    scanline& Scanline = Scanlines[h];
+    Scanline.NumIntersections = 0;
 
     ray2d Ray = PositiveXVectorAtHeight(h);
 
     // NOTE(AARON):
     // Triangles should be sorted front-to-back.
     for (int t = 0; t < NumTriangles; t++) {
-      triangle *Triangle = &Triangles[t];
-      triangle_edges Edges = EdgesFor(*Triangle);
+      triangle& Triangle = Triangles[t];
+      triangle_edges Edges = EdgesFor(Triangle);
 
       for (int i=0; i < 3; ++i) {
         line_segment Edge = FromPoints(Edges.Edges[i].Start, Edges.Edges[i].End);
         intersection_point Hit = Intersect(Ray, Edge);
 
         if (Hit.IsIntersection) {
-          scanline_intersection* Intersection = &Scanline->Intersections[Scanline->NumIntersections];
-          Intersection->Triangle = Triangle;
-          Intersection->X = (int)Hit.Intersection.X;
-          Scanline->NumIntersections++;
+          scanline_intersection& Intersection = Scanline.Intersections[Scanline.NumIntersections];
+          Intersection.Triangle = &Triangle;
+          Intersection.X = (int)Hit.Intersection.X;
+          Scanline.NumIntersections++;
         }
       }
     }
 
-    qsort(Scanline->Intersections,
-          Scanline->NumIntersections,
+    qsort(Scanline.Intersections,
+          Scanline.NumIntersections,
           sizeof(scanline_intersection),
           ScanlineIntersectionSort);
   }
@@ -133,8 +132,8 @@ PutPixel(int* DisplayBuffer, int X, int Y, int Pixel) {
 }
 
 // TODO(AARON):
-// This looks like the algorithm is mostly in place, but it's definitely not
-// working yet.  Time to start debugging!
+// Scanlines doesn't hold info on the collisions.  Looks like my data
+// persistence is incorrect. Check how pointer stuff is working.
 //
 void
 Rasterize(int* DisplayBuffer, scanline* Scanlines) {
@@ -153,6 +152,11 @@ Rasterize(int* DisplayBuffer, scanline* Scanlines) {
         }
       }
 
+      // TODO(AARON):
+      // This logic is incorrect.
+      // Rasterization only occurs if the lookup succeeds?
+      // We should proceed regardless, and we only care about the lookup for
+      // managing the triangle stack.
       triangle* Triangle;
       if ((Triangle = Lookup(&TriangleMap, x))) {
         if ((triangle*)Top(&CurrentTriangleStack) == Triangle) {
@@ -161,15 +165,15 @@ Rasterize(int* DisplayBuffer, scanline* Scanlines) {
         else {
           Push(&CurrentTriangleStack, (void*)&Triangle);
         }
-
-        Triangle = (triangle*)Top(&CurrentTriangleStack);
-        int32 Color = COLOR_OPAQUE;
-
-        if (Triangle) Color = COLOR_RED;
-        if (!Triangle) Color = COLOR_OPAQUE;
-
-        PutPixel(DisplayBuffer, x, i, Color);
       }
+
+      Triangle = (triangle*)Top(&CurrentTriangleStack);
+      int32 Color = COLOR_OPAQUE;
+
+      if (Triangle) Color = COLOR_RED;
+      if (!Triangle) Color = COLOR_OPAQUE;
+
+      PutPixel(DisplayBuffer, x, i, Color);
     }
   }
 }
