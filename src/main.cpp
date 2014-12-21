@@ -131,49 +131,43 @@ PutPixel(int* DisplayBuffer, int X, int Y, int Pixel) {
   DisplayBuffer[(Y * DISPLAY_WIDTH) + X] = Pixel;
 }
 
-// TODO(AARON):
-// Scanlines doesn't hold info on the collisions.  Looks like my data
-// persistence is incorrect. Check how pointer stuff is working.
-//
 void
 Rasterize(int* DisplayBuffer, scanline* Scanlines) {
   stack CurrentTriangleStack = {};
   stack CurrentMaterialStack = {};
 
-  for (int i=0; i<ArrayCount(Scanlines); ++i) {
-    scanline* Scanline = &Scanlines[i];
+  // TODO(AARON):
+  // ArrayCount(Scanlines) fails.  It returns 8 for some reason.
+  // Should be using ArrayCount instead of DISPLAY_HEIGHT, if possible.
+  for (int h=0; h < DISPLAY_HEIGHT; ++h) {
+    scanline& Scanline = Scanlines[h];
 
     map TriangleMap = {};
     for (int x=0; x<DISPLAY_WIDTH; x++) {
-      for (int x2=0; x2<Scanline->NumIntersections; ++x) {
-        scanline_intersection Intersection = Scanline->Intersections[x2];
+      for (int x2=0; x2<Scanline.NumIntersections; ++x2) {
+        scanline_intersection &Intersection = Scanline.Intersections[x2];
         if (Intersection.X == x) {
-          Add(&TriangleMap, x, Intersection.Triangle);
+          Add(TriangleMap, x, Intersection.Triangle);
         }
       }
 
-      // TODO(AARON):
-      // This logic is incorrect.
-      // Rasterization only occurs if the lookup succeeds?
-      // We should proceed regardless, and we only care about the lookup for
-      // managing the triangle stack.
       triangle* Triangle;
-      if ((Triangle = Lookup(&TriangleMap, x))) {
-        if ((triangle*)Top(&CurrentTriangleStack) == Triangle) {
-          Pop(&CurrentTriangleStack);
+      if ((Triangle = Lookup(TriangleMap, x))) {
+        if ((triangle*)Top(CurrentTriangleStack) == Triangle) {
+          Pop(CurrentTriangleStack);
         }
         else {
-          Push(&CurrentTriangleStack, (void*)&Triangle);
+          Push(CurrentTriangleStack, (void*)&Triangle);
         }
       }
 
-      Triangle = (triangle*)Top(&CurrentTriangleStack);
+      Triangle = (triangle*)Top(CurrentTriangleStack);
       int32 Color = COLOR_OPAQUE;
 
       if (Triangle) Color = COLOR_RED;
       if (!Triangle) Color = COLOR_OPAQUE;
 
-      PutPixel(DisplayBuffer, x, i, Color);
+      PutPixel(DisplayBuffer, x, h, Color);
     }
   }
 }
@@ -226,37 +220,35 @@ main(int argc, char** argv) {
   GenerateScanlines(&Triangle, 1, Scanlines);
   Rasterize(DisplayBuffer, Scanlines);
 
-  // int h = 0, w = 0;
-  // for (h = 0; h < DISPLAY_HEIGHT; h++) {
-  //   for (w = 0; w < DISPLAY_WIDTH; w++) {
-  //     int Color = COLOR_OPAQUE;
-
-  //     if (w < 320 && h < 240) {
-  //       Color |= COLOR_BLUE;
-  //     }
-  //     else if (w > 320 && h < 240) {
-  //       Color |= COLOR_GREEN;
-  //     }
-  //     else if (w < 320 && h > 240) {
-  //       Color |= COLOR_RED;
-  //     }
-  //     else if (w > 320 && h > 240) {
-  //       Color = COLOR_RED | COLOR_GREEN | COLOR_OPAQUE;
-  //     }
-
-  //     PutPixel(DisplayBuffer, w, h, Color);
-  //   }
-  // }
-
   SDL_UnlockTexture(Texture);
 
-  while(true) {
-    SDL_Event e;
-    if (SDL_PollEvent(&e)) {
-      if (e.type == SDL_QUIT) {
-        break;
+  bool32 Running = true;
+  while(Running) {
+    SDL_Event Event;
+    while(SDL_PollEvent(&Event)) {
+      switch(Event.type) {
+      case SDL_QUIT: {
+        Running = false;
+      } break;
+
+      case SDL_KEYDOWN:
+      case SDL_KEYUP: {
+        SDL_Keycode KeyCode = Event.key.keysym.sym;
+
+        if(Event.key.repeat == 0) {
+          if(KeyCode == SDLK_ESCAPE) {
+            Running = false;
+          }
+        }
+      } break;
       }
     }
+
+    // if (SDL_PollEvent(&Event)) {
+    //   if (Event.type == SDL_QUIT || Event.type == SDL_Event.) {
+    //     break;
+    //   }
+    // }
 
     SDL_RenderClear(Renderer);
     SDL_RenderCopy(Renderer, Texture, 0, 0);

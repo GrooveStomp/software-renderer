@@ -1,4 +1,3 @@
 [Project]
+Manager=KDevGenericManager
 Name=software-renderer
-Manager=KDevCMakeManager
-VersionControl=kdevgit

@@ -121,56 +121,56 @@ struct map {
 //------------------------------------------------------------------------------
 // Stack Operations
 //
-void Init(stack* Stack) {
-  Stack->Head = 0;
+void Init(stack& Stack) {
+  Stack.Head = 0;
 }
 
-bool IsEmpty(stack* Stack) {
-  return (Stack->Head == 0);
+bool IsEmpty(stack& Stack) {
+  return (Stack.Head == 0);
 }
 
-uint32 Size(stack* Stack) {
-  return Stack->Head;
+uint32 Size(stack& Stack) {
+  return Stack.Head;
 }
 
-bool Push(stack* Stack, void* Object) {
-  if (Stack->Head >= DISPLAY_WIDTH) return false;
+bool Push(stack& Stack, void* Object) {
+  if (Stack.Head >= DISPLAY_WIDTH) return false;
 
-  Stack->Stack[Stack->Head] = Object;
-  Stack->Head++;
+  Stack.Stack[Stack.Head] = Object;
+  Stack.Head++;
   return true;
 }
 
-void* Pop(stack* Stack) {
-  if (Stack->Head <= 0) return NULL;
+void* Pop(stack& Stack) {
+  if (Stack.Head <= 0) return NULL;
 
-  void* Result = Stack->Stack[Stack->Head];
-  Stack->Head--;
+  void* Result = Stack.Stack[Stack.Head-1];
+  Stack.Head--;
   return Result;
 }
 
-void* Top(stack* Stack) {
-  if(Stack->Head <= 0) return NULL;
+void* Top(stack& Stack) {
+  if(Stack.Head <= 0) return NULL;
 
-  return Stack->Stack[Stack->Head];
+  return Stack.Stack[Stack.Head-1];
 }
 
 //------------------------------------------------------------------------------
 // Map operations
 //
-bool Add(map* Map, uint32 Key, triangle* Triangle) {
-  if (Map->Count >= DISPLAY_WIDTH) return false;
+bool Add(map& Map, uint32 Key, triangle* Triangle) {
+  if (Map.Count >= DISPLAY_WIDTH) return false;
 
-  Map->Keys[Map->Count] = Key;
-  Map->Values[Map->Count] = (void*)Triangle;
-  Map->Count++;
+  Map.Keys[Map.Count] = Key;
+  Map.Values[Map.Count] = (void*)Triangle;
+  Map.Count++;
   return true;
 }
 
-triangle* Lookup(map* Map, uint32 Key) {
-  for (int i=0; i < Map->Count; ++i) {
-    if (Map->Keys[i] == Key) {
-      return (triangle*)Map->Values[i];
+triangle* Lookup(map& Map, uint32 Key) {
+  for (int i=0; i < Map.Count; ++i) {
+    if (Map.Keys[i] == Key) {
+      return (triangle*)Map.Values[i];
     }
   }
   return NULL;
