@@ -225,30 +225,25 @@ main(int argc, char** argv) {
   bool32 Running = true;
   while(Running) {
     SDL_Event Event;
+
     while(SDL_PollEvent(&Event)) {
       switch(Event.type) {
-      case SDL_QUIT: {
-        Running = false;
-      } break;
+        case SDL_QUIT: {
+          Running = false;
+        } break;
 
-      case SDL_KEYDOWN:
-      case SDL_KEYUP: {
-        SDL_Keycode KeyCode = Event.key.keysym.sym;
+        case SDL_KEYDOWN:
+        case SDL_KEYUP: {
+          SDL_Keycode KeyCode = Event.key.keysym.sym;
 
-        if(Event.key.repeat == 0) {
-          if(KeyCode == SDLK_ESCAPE) {
-            Running = false;
+          if(Event.key.repeat == 0) {
+            if(KeyCode == SDLK_ESCAPE) {
+              Running = false;
+            }
           }
-        }
-      } break;
+        } break;
       }
     }
-
-    // if (SDL_PollEvent(&Event)) {
-    //   if (Event.type == SDL_QUIT || Event.type == SDL_Event.) {
-    //     break;
-    //   }
-    // }
 
     SDL_RenderClear(Renderer);
     SDL_RenderCopy(Renderer, Texture, 0, 0);
