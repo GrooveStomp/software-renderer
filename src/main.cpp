@@ -51,7 +51,7 @@ ray2d
 PositiveXVectorAtHeight(int Height) {
   ray2d Result;
   Result.X = 0;
-  Result.Y = (float)Height;
+  Result.Y = (real32)Height;
   Result.Dx = 1;
   Result.Dy = 0;
   return Result;
