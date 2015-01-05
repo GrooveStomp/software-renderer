@@ -1,7 +1,9 @@
 #ifndef _TYPES_H
 #define _TYPES_H
 
+#if defined(ARO_WINDOWS)
 #include <windows.h>
+#endif
 #include <math.h>
 #include <stdint.h>
 
