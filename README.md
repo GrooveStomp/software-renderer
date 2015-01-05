@@ -8,7 +8,20 @@
 
 ## Linux
 
+- Install KDevelop4
+- In KDevelop:
+
+  - [Project] -> [Open/Import Project]
+    - Browse to path for software-renderer.
+    - Specify 'software-renderer' as the project name.
+
+  - [Run] -> [Configure Launches]
+    - Add New.
+    - Select the executable from the /build directory.
+    - Set the working directory appropriately.
+
     cd $PROJECT_PATH
+    source env/env
 
 # Building
 
@@ -18,7 +31,7 @@
 
 ## Linux
 
-    env/build.sh
+    build
 
 # Debugging
 
@@ -33,6 +46,6 @@ In this case we're using SDL, so this won't work.
 
 ## Linux
 
-# To-Do
+    debugger
 
-- Verify building still works on Linux.
+In setup we've already added the source directory to the project, so setting breakpoints and all should be pretty typical of using IDEs.

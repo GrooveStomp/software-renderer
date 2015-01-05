@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+export PATH=/home/aaron/code/software-renderer/env:$PATH
+alias debugger="/usr/bin/kdevelop > /dev/null 2>&1 &"
