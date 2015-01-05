@@ -20,6 +20,7 @@
     - Select the executable from the /build directory.
     - Set the working directory appropriately.
 
+Then:
 
     cd $PROJECT_PATH
     source env/env
