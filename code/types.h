@@ -40,8 +40,8 @@ enum COLOR {
 };
 
 enum DISPLAY_SIZE {
-  DISPLAY_WIDTH = 640,
-  DISPLAY_HEIGHT = 480
+  DISPLAY_WIDTH = 100,
+  DISPLAY_HEIGHT = 80
 };
 
 struct point2d{

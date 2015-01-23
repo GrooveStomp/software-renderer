@@ -3,6 +3,7 @@
 #include <stdlib.h>
 //#include <stdbool.h>
 
+#include "data.h"
 #include "types.h"
 
 /*
@@ -32,19 +33,19 @@ calculation for that polygon. Ie., lighting + shading + textures + bump/parallal
 */
 
 triangle_edges
-EdgesFor(triangle Triangle) {
-  triangle_edges Edges;
+FromTriangle(triangle Triangle) {
+  triangle_edges Result;
 
-  Edges.Edges[0].Start = Triangle.Point[0];
-  Edges.Edges[0].End = Triangle.Point[1];
+  Result.Edges[0].Start = Triangle.Point[0];
+  Result.Edges[0].End = Triangle.Point[1];
 
-  Edges.Edges[1].Start = Triangle.Point[1];
-  Edges.Edges[1].End = Triangle.Point[2];
+  Result.Edges[1].Start = Triangle.Point[1];
+  Result.Edges[1].End = Triangle.Point[2];
 
-  Edges.Edges[2].Start = Triangle.Point[2];
-  Edges.Edges[2].End = Triangle.Point[0];
+  Result.Edges[2].Start = Triangle.Point[2];
+  Result.Edges[2].End = Triangle.Point[0];
 
-  return Edges;
+  return Result;
 }
 
 ray2d
@@ -57,29 +58,29 @@ PositiveXVectorAtHeight(int Height) {
   return Result;
 }
 
-// Read here: http://www.gamedev.net/topic/528210-2d-ray-to-line-intersection-test/#entry4423493
-//
-intersection_point
-Intersect(ray2d Ray, line_segment LineSegment) {
-  intersection_point Miss = {};
-  ray2d Line = FromLineSegment(LineSegment);
+/* This assumes a horizontal +X Vector. */
+bool
+HasIntersection(ray2d Ray, line_segment Line) {
+  int32 A = Line.EndY - Ray.Y;
+  int32 B = Line.StartY - Ray.Y;
+  return ((A ^ B) < 0) || Line.EndY == Ray.Y || Line.StartY == Ray.Y;
+}
 
-  real32 C = Line.Dy * Line.X - Line.Dx * Line.Y;
-  real32 Denominator = -Line.Dy*Ray.Dx + Line.Dx*Ray.Dy;
+real32
+Intersect(ray2d Ray, line_segment Line) {
+  vector2d Slope = Subtract(Line.End, Line.Start);
+  bool IsNegative = (Slope.X < 0 || Slope.Y < 0);
 
-  if (Denominator == 0) return Miss;
+  real32 DeltaY = abs(Line.StartY - Ray.Y);
 
-   real32    Numerator = -(Line.Dy)*Ray.X + Line.Dx*Ray.Y + C;
-   real32            T = -(Numerator / Denominator);
-  point2d Intersection =   Evaluate(Ray, T);
-   real32           T0 =  (Intersection.X - Line.X) / Line.Dx;
+  real32 Term2 = (DeltaY * (Slope.X / Slope.Y));
 
-  if (T0 > 1 || T0 < 0) return Miss;
-
-  intersection_point Result;
-  Result.IsIntersection = true;
-  Result.Intersection = Intersection;
-  return Result;
+  if (IsNegative) {
+    return Line.StartX - Term2;
+  }
+  else {
+    return Line.StartX + Term2;
+  }
 }
 
 int
@@ -94,6 +95,25 @@ ScanlineIntersectionSort(const void* Left, const void* Right) {
 
 void
 GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) {
+#define RENDER_HITS 0
+#define RENDER_TRIANGLE_POINTS 1
+#define RENDER_INTERSECTIONS 1
+
+#if RENDER_TRIANGLE_POINTS != 0
+  char* TrianglePointRender = new char[sizeof(ConstData)];
+  strcpy(TrianglePointRender, ConstData);
+#endif
+
+#if RENDER_HITS != 0
+  char* HitRender = new char[sizeof(ConstData)];
+  strcpy(HitRender, ConstData);
+#endif
+
+#if RENDER_INTERSECTIONS != 0
+  char* IntersectionRender = new char[sizeof(ConstData)];
+  strcpy(IntersectionRender, ConstData);
+#endif
+
   for (int h = 0; h < DISPLAY_HEIGHT; h++) {
     scanline& Scanline = Scanlines[h];
     Scanline.NumIntersections = 0;
@@ -104,16 +124,37 @@ GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) 
     // Triangles should be sorted front-to-back.
     for (int t = 0; t < NumTriangles; t++) {
       triangle& Triangle = Triangles[t];
-      triangle_edges Edges = EdgesFor(Triangle);
+      triangle_edges Edges = FromTriangle(Triangle);
 
       for (int i=0; i < 3; ++i) {
         line_segment Edge = FromPoints(Edges.Edges[i].Start, Edges.Edges[i].End);
-        intersection_point Hit = Intersect(Ray, Edge);
 
-        if (Hit.IsIntersection) {
+#if RENDER_TRIANGLE_POINTS != 0
+        if (h == 0) {
+          printf("Edge %i starts at (%i,%i) and ends at (%i,%i)\n", i, (int)Edge.StartX, (int)Edge.StartY, (int)Edge.EndX, (int)Edge.EndY);
+          Plot(TrianglePointRender, 'X', Edge.StartX, Edge.StartY);
+        }
+#endif
+
+        if (HasIntersection(Ray, Edge)) {
+#if RENDER_HITS != 0
+          for (int j=0; j < DATA_WIDTH - (DATA_WIDTH_LEAD + 1); j++) {
+            Plot(HitRender, 'X', j, h);
+          }
+#endif
+          real32 X = Intersect(Ray, Edge);
+
+          if (X > 100) {
+            printf("X is: %i\n", (int)X);
+          }
+
+#if RENDER_INTERSECTIONS != 0
+          Plot(IntersectionRender, 'X', X, h);
+#endif
+
           scanline_intersection& Intersection = Scanline.Intersections[Scanline.NumIntersections];
           Intersection.Triangle = &Triangle;
-          Intersection.X = (int)Hit.Intersection.X;
+          Intersection.X = X;
           Scanline.NumIntersections++;
         }
       }
@@ -124,6 +165,18 @@ GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) 
           sizeof(scanline_intersection),
           ScanlineIntersectionSort);
   }
+#if RENDER_TRIANGLE_POINTS != 0
+  printf("%s", TrianglePointRender);
+  printf("\n\n\n");
+#endif
+#if RENDER_HITS != 0
+  printf("%s", HitRender);
+  printf("\n\n\n");
+#endif
+#if RENDER_INTERSECTIONS != 0
+  printf("%s", IntersectionRender);
+  printf("\n\n\n");
+#endif
 }
 
 void
@@ -183,12 +236,12 @@ main(int argc, char** argv) {
   int* DisplayBuffer;
 
   triangle Triangle = {};
-  Triangle.Point[0].X = 100;
-  Triangle.Point[0].Y = 200;
-  Triangle.Point[1].X = 200;
-  Triangle.Point[1].Y = 200;
-  Triangle.Point[2].X = 150;
-  Triangle.Point[2].Y = 100;
+  Triangle.Point[0].X = 10;
+  Triangle.Point[0].Y = 10;
+  Triangle.Point[1].X = 55;
+  Triangle.Point[1].Y = 17;
+  Triangle.Point[2].X = 80;
+  Triangle.Point[2].Y = 48;
 
   DisplayBuffer = (int*)malloc(DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
 
@@ -215,10 +268,17 @@ main(int argc, char** argv) {
     return 1;
   }
 
-  SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &Pitch);
+  //SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &Pitch);
 
   GenerateScanlines(&Triangle, 1, Scanlines);
-  Rasterize(DisplayBuffer, Scanlines);
+
+  // for (int i=0; i<DISPLAY_HEIGHT; i++) {
+  //   if (Scanlines[i].NumIntersections > 0) {
+  //     printf("Scanline %i has %i intersections.\n", i, Scanlines[i].NumIntersections);
+  //   }
+  // }
+
+  //Rasterize(DisplayBuffer, Scanlines);
 
   SDL_UnlockTexture(Texture);
 
