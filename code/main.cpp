@@ -3,11 +3,10 @@
 #include <stdlib.h>
 //#include <stdbool.h>
 
-#include "data.h"
 #include "types.h"
 
 /*
-TODO(AARON):
+NOTE(AARON):
 Given a polygon in viewspace ((0,0), (640,480)) we want to rasterize the polygon
 onto our viewspace buffer.
 At this point we can skip our modelview and projection matrices.
@@ -31,6 +30,34 @@ polygons.  So we'll need a stack representing the current polygon we're on.
 For every polygon we encounter in the stack while rasterizing, we need to do a per-pixel material
 calculation for that polygon. Ie., lighting + shading + textures + bump/parallalax.
 */
+
+global_variable scanline Scanlines[DISPLAY_HEIGHT];
+global_variable point2d FirstPoint;
+global_variable point2d SecondPoint;
+global_variable point2d ThirdPoint;
+
+triangle
+OrderForRaster(triangle Unordered) {
+  // Counter-clockwise.
+  // Bottom-left starting.
+
+  triangle Result;
+
+  if (Unordered.A.Y > Unordered.B.Y && Unordered.A.Y > Unordered.C.Y) {
+    return Unordered;
+  }
+  else if (Unordered.B.Y > Unordered.A.Y && Unordered.B.Y > Unordered.C.Y) {
+    Result.A = Unordered.B;
+    Result.B = Unordered.C;
+    Result.C = Unordered.A;
+  }
+  else {
+    Result.A = Unordered.C;
+    Result.B = Unordered.A;
+    Result.C = Unordered.B;
+  }
+  return Result;
+}
 
 triangle_edges
 FromTriangle(triangle Triangle) {
@@ -95,25 +122,6 @@ ScanlineIntersectionSort(const void* Left, const void* Right) {
 
 void
 GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) {
-#define RENDER_HITS 0
-#define RENDER_TRIANGLE_POINTS 1
-#define RENDER_INTERSECTIONS 1
-
-#if RENDER_TRIANGLE_POINTS != 0
-  char* TrianglePointRender = new char[sizeof(ConstData)];
-  strcpy(TrianglePointRender, ConstData);
-#endif
-
-#if RENDER_HITS != 0
-  char* HitRender = new char[sizeof(ConstData)];
-  strcpy(HitRender, ConstData);
-#endif
-
-#if RENDER_INTERSECTIONS != 0
-  char* IntersectionRender = new char[sizeof(ConstData)];
-  strcpy(IntersectionRender, ConstData);
-#endif
-
   for (int h = 0; h < DISPLAY_HEIGHT; h++) {
     scanline& Scanline = Scanlines[h];
     Scanline.NumIntersections = 0;
@@ -129,29 +137,14 @@ GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) 
       for (int i=0; i < 3; ++i) {
         line_segment Edge = FromPoints(Edges.Edges[i].Start, Edges.Edges[i].End);
 
-#if RENDER_TRIANGLE_POINTS != 0
-        if (h == 0) {
-          printf("Edge %i starts at (%i,%i) and ends at (%i,%i)\n", i, (int)Edge.StartX, (int)Edge.StartY, (int)Edge.EndX, (int)Edge.EndY);
-          Plot(TrianglePointRender, 'X', Edge.StartX, Edge.StartY);
-        }
-#endif
-
         if (HasIntersection(Ray, Edge)) {
-#if RENDER_HITS != 0
-          for (int j=0; j < DATA_WIDTH - (DATA_WIDTH_LEAD + 1); j++) {
-            Plot(HitRender, 'X', j, h);
+          // NOTE(AARON):
+          // For a given triangle we expect to only have two intersections, max.
+          // More than this causes rendering artifacts.
+          if (Scanline.NumIntersections == 2) {
+            continue;
           }
-#endif
           real32 X = Intersect(Ray, Edge);
-
-          if (X > 100) {
-            printf("X is: %i\n", (int)X);
-          }
-
-#if RENDER_INTERSECTIONS != 0
-          Plot(IntersectionRender, 'X', X, h);
-#endif
-
           scanline_intersection& Intersection = Scanline.Intersections[Scanline.NumIntersections];
           Intersection.Triangle = &Triangle;
           Intersection.X = X;
@@ -165,67 +158,92 @@ GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) 
           sizeof(scanline_intersection),
           ScanlineIntersectionSort);
   }
-#if RENDER_TRIANGLE_POINTS != 0
-  printf("%s", TrianglePointRender);
-  printf("\n\n\n");
-#endif
-#if RENDER_HITS != 0
-  printf("%s", HitRender);
-  printf("\n\n\n");
-#endif
-#if RENDER_INTERSECTIONS != 0
-  printf("%s", IntersectionRender);
-  printf("\n\n\n");
-#endif
 }
 
 void
-PutPixel(int* DisplayBuffer, int X, int Y, int Pixel) {
+PutPixel(int DisplayBuffer[], int X, int Y, int Pixel) {
   DisplayBuffer[(Y * DISPLAY_WIDTH) + X] = Pixel;
 }
 
-void
-Rasterize(int* DisplayBuffer, scanline* Scanlines) {
-  stack CurrentTriangleStack = {};
-  stack CurrentMaterialStack = {};
+#define DEBUG_RASTERIZE 0
+#if DEBUG_RASTERIZE != 0
 
-  // TODO(AARON):
-  // ArrayCount(Scanlines) fails.  It returns 8 for some reason.
-  // Should be using ArrayCount instead of DISPLAY_HEIGHT, if possible.
+void
+Rasterize(int DisplayBuffer[], scanline Scanlines[]) {
   for (int h=0; h < DISPLAY_HEIGHT; ++h) {
     scanline& Scanline = Scanlines[h];
 
-    map TriangleMap = {};
+    bool Toggle = false;
+
     for (int x=0; x<DISPLAY_WIDTH; x++) {
-      for (int x2=0; x2<Scanline.NumIntersections; ++x2) {
-        scanline_intersection &Intersection = Scanline.Intersections[x2];
+      for (int s=0; s<Scanline.NumIntersections; ++s) {
+        scanline_intersection &Intersection = Scanline.Intersections[s];
         if (Intersection.X == x) {
-          Add(TriangleMap, x, Intersection.Triangle);
-        }
+          Toggle = !Toggle;
+         }
       }
 
-      triangle* Triangle;
-      if ((Triangle = Lookup(TriangleMap, x))) {
-        if ((triangle*)Top(CurrentTriangleStack) == Triangle) {
-          Pop(CurrentTriangleStack);
-        }
-        else {
-          Push(CurrentTriangleStack, (void*)&Triangle);
-        }
-      }
+      int32 Hit = COLOR_BLUE;
+      int32 NoHit = COLOR_OPAQUE;
 
-      Triangle = (triangle*)Top(CurrentTriangleStack);
-      int32 Color = COLOR_OPAQUE;
-
-      if (Triangle) Color = COLOR_RED;
-      if (!Triangle) Color = COLOR_OPAQUE;
+      int32 Color = NoHit;
+      if (Toggle) { Color = Hit; }
 
       PutPixel(DisplayBuffer, x, h, Color);
     }
   }
 }
 
-global_variable scanline Scanlines[DISPLAY_HEIGHT];
+#else
+
+// TODO(AARON):
+// Some rendering errors for this rasterize method.
+//
+void
+Rasterize(int DisplayBuffer[], scanline Scanlines[]) {
+  int32 Colors[] = { COLOR_OPAQUE, COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_RED, COLOR_GREEN, COLOR_BLUE };
+
+  stack ColorStack = {};
+  Init(ColorStack);
+  Push(ColorStack, (void*)&Colors[0]);
+
+  stack TriangleStack = {};
+  Init(TriangleStack);
+
+  for (int h=0; h < DISPLAY_HEIGHT; ++h) {
+    scanline& Scanline = Scanlines[h];
+    map TriangleMap = {};
+
+    for (int x=0; x<DISPLAY_WIDTH; x++) {
+      triangle* Triangle;
+
+      for (int s=0; s<Scanline.NumIntersections; ++s) {
+        scanline_intersection &Intersection = Scanline.Intersections[s];
+        if (Intersection.X == x) {
+
+          Add(TriangleMap, x, Intersection.Triangle);
+          if ((Triangle = Lookup(TriangleMap, x))) {
+            if ((triangle*)Top(TriangleStack) == Triangle) {
+              Pop(TriangleStack);
+              Pop(ColorStack);
+            }
+            else {
+              Push(TriangleStack, (void*)&Triangle);
+              Push(ColorStack, (void*)&Colors[Size(ColorStack)]);
+            }
+          }
+        }
+      }
+
+      Triangle = (triangle*)Top(TriangleStack);
+      int32 Color = *(int32*)Top(ColorStack);
+
+      PutPixel(DisplayBuffer, x, h, Color);
+    }
+  }
+}
+
+#endif
 
 int
 main(int argc, char** argv) {
@@ -236,12 +254,16 @@ main(int argc, char** argv) {
   int* DisplayBuffer;
 
   triangle Triangle = {};
-  Triangle.Point[0].X = 10;
-  Triangle.Point[0].Y = 10;
-  Triangle.Point[1].X = 55;
-  Triangle.Point[1].Y = 17;
-  Triangle.Point[2].X = 80;
-  Triangle.Point[2].Y = 48;
+  Triangle.Point[0].X = 100;
+  Triangle.Point[0].Y = 200;
+  Triangle.Point[1].X = 750;
+  Triangle.Point[1].Y = 340;
+  Triangle.Point[2].X = 800;
+  Triangle.Point[2].Y = 640;
+  Triangle = OrderForRaster(Triangle);
+  FirstPoint = Triangle.A;
+  SecondPoint = Triangle.B;
+  ThirdPoint = Triangle.C;
 
   DisplayBuffer = (int*)malloc(DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
 
@@ -268,17 +290,11 @@ main(int argc, char** argv) {
     return 1;
   }
 
-  //SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &Pitch);
+  SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &Pitch);
 
   GenerateScanlines(&Triangle, 1, Scanlines);
 
-  // for (int i=0; i<DISPLAY_HEIGHT; i++) {
-  //   if (Scanlines[i].NumIntersections > 0) {
-  //     printf("Scanline %i has %i intersections.\n", i, Scanlines[i].NumIntersections);
-  //   }
-  // }
-
-  //Rasterize(DisplayBuffer, Scanlines);
+  Rasterize(DisplayBuffer, Scanlines);
 
   SDL_UnlockTexture(Texture);
 

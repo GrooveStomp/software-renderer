@@ -36,12 +36,13 @@ enum COLOR {
   COLOR_RED = 0xFF000000,
   COLOR_GREEN = 0x00FF0000,
   COLOR_BLACK = 0x000000FF,
+  COLOR_WHITE = 0xFFFFFFFF,
   COLOR_OPAQUE = 0x000000FF
 };
 
 enum DISPLAY_SIZE {
-  DISPLAY_WIDTH = 100,
-  DISPLAY_HEIGHT = 80
+  DISPLAY_WIDTH = 1024,
+  DISPLAY_HEIGHT = 768
 };
 
 struct point2d{
@@ -82,11 +83,25 @@ struct line_segment {
 typedef line_segment edge;
 
 struct triangle {
-  point2d Point[3];
+  union {
+    point2d Point[3];
+    struct {
+      point2d A;
+      point2d B;
+      point2d C;
+    };
+  };
 };
 
 struct triangle_edges {
-  edge Edges[3];
+  union {
+    edge Edges[3];
+    struct {
+      edge AB;
+      edge BC;
+      edge CA;
+    };
+  };
 };
 
 struct Material {
