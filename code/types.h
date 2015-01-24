@@ -6,6 +6,7 @@
 #endif
 #include <math.h>
 #include <stdint.h>
+#include <assert.h>
 
 #define internal static
 #define local_persist static
@@ -108,11 +109,6 @@ struct Material {
   byte r, g, b, a;
 };
 
-struct intersection_point {
-  bool32 IsIntersection;
-  point2d Intersection;
-};
-
 struct scanline_intersection {
   uint32 X;
   triangle* Triangle;
@@ -139,19 +135,24 @@ struct map {
 //------------------------------------------------------------------------------
 // Stack Operations
 //
-void Init(stack& Stack) {
+void
+Init(stack& Stack) {
   Stack.Head = 0;
 }
 
-bool IsEmpty(stack& Stack) {
+bool
+IsEmpty(stack& Stack) {
   return (Stack.Head == 0);
 }
 
-uint32 Size(stack& Stack) {
+uint32
+Size(stack& Stack) {
   return Stack.Head;
 }
 
-bool Push(stack& Stack, void* Object) {
+bool
+Push(stack& Stack, void* Object) {
+  assert(Stack.Head < 1);
   if (Stack.Head >= DISPLAY_WIDTH) return false;
 
   Stack.Stack[Stack.Head] = Object;
@@ -159,7 +160,8 @@ bool Push(stack& Stack, void* Object) {
   return true;
 }
 
-void* Pop(stack& Stack) {
+void*
+Pop(stack& Stack) {
   if (Stack.Head <= 0) return NULL;
 
   void* Result = Stack.Stack[Stack.Head-1];
@@ -167,7 +169,8 @@ void* Pop(stack& Stack) {
   return Result;
 }
 
-void* Top(stack& Stack) {
+void*
+Top(stack& Stack) {
   if(Stack.Head <= 0) return NULL;
 
   return Stack.Stack[Stack.Head-1];
@@ -186,7 +189,7 @@ bool Add(map& Map, uint32 Key, triangle* Triangle) {
 }
 
 triangle* Lookup(map& Map, uint32 Key) {
-  for (int i=0; i < Map.Count; ++i) {
+  for (int i=0; i <= Map.Count; ++i) {
     if (Map.Keys[i] == Key) {
       return (triangle*)Map.Values[i];
     }

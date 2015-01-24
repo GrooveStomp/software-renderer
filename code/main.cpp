@@ -128,8 +128,6 @@ GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) 
 
     ray2d Ray = PositiveXVectorAtHeight(h);
 
-    // NOTE(AARON):
-    // Triangles should be sorted front-to-back.
     for (int t = 0; t < NumTriangles; t++) {
       triangle& Triangle = Triangles[t];
       triangle_edges Edges = FromTriangle(Triangle);
@@ -165,85 +163,55 @@ PutPixel(int DisplayBuffer[], int X, int Y, int Pixel) {
   DisplayBuffer[(Y * DISPLAY_WIDTH) + X] = Pixel;
 }
 
-#define DEBUG_RASTERIZE 0
-#if DEBUG_RASTERIZE != 0
-
 void
 Rasterize(int DisplayBuffer[], scanline Scanlines[]) {
-  for (int h=0; h < DISPLAY_HEIGHT; ++h) {
-    scanline& Scanline = Scanlines[h];
+  int32 Colors[] = { COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_RED | COLOR_GREEN, COLOR_RED | COLOR_BLUE, COLOR_GREEN | COLOR_BLUE, COLOR_WHITE };
 
-    bool Toggle = false;
+  triangle* CurrentTriangle[DISPLAY_WIDTH] = {};
+  uint32 CurrentTriangleIndex = 0;
 
-    for (int x=0; x<DISPLAY_WIDTH; x++) {
-      for (int s=0; s<Scanline.NumIntersections; ++s) {
-        scanline_intersection &Intersection = Scanline.Intersections[s];
-        if (Intersection.X == x) {
-          Toggle = !Toggle;
-         }
-      }
-
-      int32 Hit = COLOR_BLUE;
-      int32 NoHit = COLOR_OPAQUE;
-
-      int32 Color = NoHit;
-      if (Toggle) { Color = Hit; }
-
-      PutPixel(DisplayBuffer, x, h, Color);
-    }
-  }
-}
-
-#else
-
-// TODO(AARON):
-// Some rendering errors for this rasterize method.
-//
-void
-Rasterize(int DisplayBuffer[], scanline Scanlines[]) {
-  int32 Colors[] = { COLOR_OPAQUE, COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_RED, COLOR_GREEN, COLOR_BLUE };
-
-  stack ColorStack = {};
-  Init(ColorStack);
-  Push(ColorStack, (void*)&Colors[0]);
-
-  stack TriangleStack = {};
-  Init(TriangleStack);
+  uint32 CurrentColorIndex = 0;
 
   for (int h=0; h < DISPLAY_HEIGHT; ++h) {
     scanline& Scanline = Scanlines[h];
     map TriangleMap = {};
 
-    for (int x=0; x<DISPLAY_WIDTH; x++) {
+    for (int x=0; x<DISPLAY_WIDTH; ++x) {
       triangle* Triangle;
 
       for (int s=0; s<Scanline.NumIntersections; ++s) {
         scanline_intersection &Intersection = Scanline.Intersections[s];
+
         if (Intersection.X == x) {
 
-          Add(TriangleMap, x, Intersection.Triangle);
-          if ((Triangle = Lookup(TriangleMap, x))) {
-            if ((triangle*)Top(TriangleStack) == Triangle) {
-              Pop(TriangleStack);
-              Pop(ColorStack);
-            }
-            else {
-              Push(TriangleStack, (void*)&Triangle);
-              Push(ColorStack, (void*)&Colors[Size(ColorStack)]);
-            }
+          if (CurrentTriangle[CurrentTriangleIndex] == Intersection.Triangle) {
+            CurrentTriangleIndex--;
+            assert(CurrentTriangleIndex >= 0);
+
+            CurrentColorIndex--;
+            assert(CurrentColorIndex >= 0);
           }
+
+          else {
+            ++CurrentTriangleIndex;
+            assert(CurrentColorIndex <= 5);
+            CurrentTriangle[CurrentTriangleIndex] = Intersection.Triangle;
+
+            ++CurrentColorIndex;
+            assert(CurrentColorIndex <= 5);
+          }
+
         }
       }
 
-      Triangle = (triangle*)Top(TriangleStack);
-      int32 Color = *(int32*)Top(ColorStack);
+      // NOTE(AARON): This may be a NULL pointer.
+      Triangle = CurrentTriangle[CurrentTriangleIndex];
+      int32 Color = Colors[CurrentColorIndex];
 
       PutPixel(DisplayBuffer, x, h, Color);
     }
   }
 }
-
-#endif
 
 int
 main(int argc, char** argv) {
