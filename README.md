@@ -3,7 +3,7 @@
 ## Windows
 
 - Create a `cmd.exe` shortcut on the desktop.
-- Set its target to: `C:\Windows\System32\cmd.exe /k "%PathToProject%\env\env.bat"`
+- Set its target to: `C:\Windows\System32\cmd.exe /k "%PathToProject%\env\shell.bat"`
 - Launch the custom command prompt.
 
 ## Linux
@@ -23,7 +23,7 @@
 Then:
 
     cd $PROJECT_PATH
-    source env/env
+    source env/shell
 
 # Building
 
@@ -35,11 +35,21 @@ Then:
 
     build
 
+# Running
+
+## Windows
+
+    run
+
+## Linux
+
+    run
+
 # Debugging
 
 ## Windows
 
-    devenv build\main.exe
+    debugger
 
 - Explicitly open the source file where the breakpoint will go.
 - Use F5, F10 and F11 to manipulate the program counter to step around the sourcecode.
