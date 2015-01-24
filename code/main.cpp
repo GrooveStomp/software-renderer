@@ -167,35 +167,30 @@ void
 Rasterize(int DisplayBuffer[], scanline Scanlines[]) {
   int32 Colors[] = { COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_RED | COLOR_GREEN, COLOR_RED | COLOR_BLUE, COLOR_GREEN | COLOR_BLUE, COLOR_WHITE };
 
-  triangle* CurrentTriangle[DISPLAY_WIDTH] = {};
-  uint32 CurrentTriangleIndex = 0;
+  stack CurrentTriangle = {};
 
   uint32 CurrentColorIndex = 0;
 
   for (int h=0; h < DISPLAY_HEIGHT; ++h) {
     scanline& Scanline = Scanlines[h];
-    map TriangleMap = {};
 
     for (int x=0; x<DISPLAY_WIDTH; ++x) {
-      triangle* Triangle;
 
       for (int s=0; s<Scanline.NumIntersections; ++s) {
         scanline_intersection &Intersection = Scanline.Intersections[s];
 
         if (Intersection.X == x) {
+          triangle* Triangle;
 
-          if (CurrentTriangle[CurrentTriangleIndex] == Intersection.Triangle) {
-            CurrentTriangleIndex--;
-            assert(CurrentTriangleIndex >= 0);
+          if (Top(CurrentTriangle) == Intersection.Triangle) {
+            Pop(CurrentTriangle);
 
             CurrentColorIndex--;
             assert(CurrentColorIndex >= 0);
           }
 
           else {
-            ++CurrentTriangleIndex;
-            assert(CurrentColorIndex <= 5);
-            CurrentTriangle[CurrentTriangleIndex] = Intersection.Triangle;
+            Push(CurrentTriangle, Intersection.Triangle);
 
             ++CurrentColorIndex;
             assert(CurrentColorIndex <= 5);
@@ -205,7 +200,7 @@ Rasterize(int DisplayBuffer[], scanline Scanlines[]) {
       }
 
       // NOTE(AARON): This may be a NULL pointer.
-      Triangle = CurrentTriangle[CurrentTriangleIndex];
+      triangle* Triangle = Top(CurrentTriangle);
       int32 Color = Colors[CurrentColorIndex];
 
       PutPixel(DisplayBuffer, x, h, Color);

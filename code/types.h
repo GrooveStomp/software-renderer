@@ -121,20 +121,14 @@ struct scanline {
 };
 
 struct stack {
-  void* Stack[DISPLAY_WIDTH];
+  triangle* Stack[DISPLAY_WIDTH];
   uint32 Head;
 };
 
-struct map {
-  uint32 Keys[DISPLAY_WIDTH];
-  void* Values[DISPLAY_WIDTH];
-  uint32 Count;
-};
-
-
 //------------------------------------------------------------------------------
 // Stack Operations
-//
+//------------------------------------------------------------------------------
+
 void
 Init(stack& Stack) {
   Stack.Head = 0;
@@ -151,56 +145,31 @@ Size(stack& Stack) {
 }
 
 bool
-Push(stack& Stack, void* Object) {
-  assert(Stack.Head < 1);
-  if (Stack.Head >= DISPLAY_WIDTH) return false;
-
+Push(stack& Stack, triangle* Object) {
+  ++Stack.Head;
   Stack.Stack[Stack.Head] = Object;
-  Stack.Head++;
   return true;
 }
 
-void*
+triangle*
 Pop(stack& Stack) {
   if (Stack.Head <= 0) return NULL;
 
-  void* Result = Stack.Stack[Stack.Head-1];
-  Stack.Head--;
+  triangle* Result = Stack.Stack[Stack.Head];
+  --Stack.Head;
+
   return Result;
 }
 
-void*
+triangle*
 Top(stack& Stack) {
-  if(Stack.Head <= 0) return NULL;
-
-  return Stack.Stack[Stack.Head-1];
+  return Stack.Stack[Stack.Head];
 }
-
-//------------------------------------------------------------------------------
-// Map operations
-//
-bool Add(map& Map, uint32 Key, triangle* Triangle) {
-  if (Map.Count >= DISPLAY_WIDTH) return false;
-
-  Map.Keys[Map.Count] = Key;
-  Map.Values[Map.Count] = (void*)Triangle;
-  Map.Count++;
-  return true;
-}
-
-triangle* Lookup(map& Map, uint32 Key) {
-  for (int i=0; i <= Map.Count; ++i) {
-    if (Map.Keys[i] == Key) {
-      return (triangle*)Map.Values[i];
-    }
-  }
-  return NULL;
-}
-
 
 //------------------------------------------------------------------------------
 // Ray, Point and other similar operations
-//
+//------------------------------------------------------------------------------
+
 point2d Add(point2d First, point2d Second) {
   point2d Result;
   Result.X = First.X + Second.X;
