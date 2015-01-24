@@ -25,6 +25,7 @@ typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
 
+typedef uint32 color;
 typedef uint8 byte;
 
 typedef float real32;
@@ -33,11 +34,13 @@ typedef double real64;
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 enum COLOR {
+  COLOR_NULL = 0x0,
   COLOR_BLUE = 0x0000FF00,
   COLOR_RED = 0xFF000000,
   COLOR_GREEN = 0x00FF0000,
   COLOR_BLACK = 0x000000FF,
   COLOR_WHITE = 0xFFFFFFFF,
+  COLOR_YELLOW = COLOR_RED | COLOR_GREEN,
   COLOR_OPAQUE = 0x000000FF
 };
 
@@ -105,8 +108,10 @@ struct triangle_edges {
   };
 };
 
-struct Material {
-  byte r, g, b, a;
+struct materials {
+  triangle* Triangles[DISPLAY_WIDTH];
+  color Colors[DISPLAY_WIDTH];
+  int Count;
 };
 
 struct scanline_intersection {
@@ -124,6 +129,30 @@ struct stack {
   triangle* Stack[DISPLAY_WIDTH];
   uint32 Head;
 };
+
+//------------------------------------------------------------------------------
+// Material Operations
+//------------------------------------------------------------------------------
+
+color
+FromMaterial(materials& Materials, triangle* Triangle) {
+  for (int i=0; i < Materials.Count; ++i) {
+    if (Materials.Triangles[i] == Triangle) {
+      return Materials.Colors[i];
+    }
+  }
+
+  return COLOR_NULL;
+}
+
+void
+InitMaterials(materials& Materials, triangle* Triangles[], color Colors[], int Count) {
+  Materials.Count = Count;
+  for (int i=0; i< Count; ++i) {
+    Materials.Triangles[i] = Triangles[i];
+    Materials.Colors[i] = Colors[i];
+  }
+}
 
 //------------------------------------------------------------------------------
 // Stack Operations
@@ -164,6 +193,39 @@ Pop(stack& Stack) {
 triangle*
 Top(stack& Stack) {
   return Stack.Stack[Stack.Head];
+}
+
+bool
+Find(stack& Stack, triangle* Object) {
+  for (int i=0; i<=Stack.Head; ++i) {
+    if (Stack.Stack[i] == Object) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool
+Remove(stack& Stack, triangle* Object) {
+  int index = -1;
+  for (int i=0; i <= Stack.Head; ++i) {
+    if (Stack.Stack[i] == Object) {
+      index = i;
+      break;
+    }
+  }
+
+  if (index < 0) {
+    return false;
+  }
+
+  for (int i=index; i< Stack.Head; ++i) {
+    Stack.Stack[i] = Stack.Stack[i+1];
+  }
+  --Stack.Head;
+
+  return true;
 }
 
 //------------------------------------------------------------------------------

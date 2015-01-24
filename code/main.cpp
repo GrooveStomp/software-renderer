@@ -32,9 +32,6 @@ calculation for that polygon. Ie., lighting + shading + textures + bump/parallal
 */
 
 global_variable scanline Scanlines[DISPLAY_HEIGHT];
-global_variable point2d FirstPoint;
-global_variable point2d SecondPoint;
-global_variable point2d ThirdPoint;
 
 triangle
 OrderForRaster(triangle Unordered) {
@@ -121,7 +118,7 @@ ScanlineIntersectionSort(const void* Left, const void* Right) {
 }
 
 void
-GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) {
+GenerateScanlines(triangle* Triangles[], int NumTriangles, scanline Scanlines[]) {
   for (int h = 0; h < DISPLAY_HEIGHT; h++) {
     scanline& Scanline = Scanlines[h];
     Scanline.NumIntersections = 0;
@@ -129,8 +126,10 @@ GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) 
     ray2d Ray = PositiveXVectorAtHeight(h);
 
     for (int t = 0; t < NumTriangles; t++) {
-      triangle& Triangle = Triangles[t];
+      triangle& Triangle = *Triangles[t];
       triangle_edges Edges = FromTriangle(Triangle);
+
+      int NumTriangleIntersections = 0;
 
       for (int i=0; i < 3; ++i) {
         line_segment Edge = FromPoints(Edges.Edges[i].Start, Edges.Edges[i].End);
@@ -138,10 +137,15 @@ GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) 
         if (HasIntersection(Ray, Edge)) {
           // NOTE(AARON):
           // For a given triangle we expect to only have two intersections, max.
-          // More than this causes rendering artifacts.
-          if (Scanline.NumIntersections == 2) {
+          // More than this causes rendering artifacts because any two edges
+          // probably share a vertex. When a vertex is shared, then then the
+          // intersection points get recalculated, which will cause problems
+          // at rasterization.
+          ++NumTriangleIntersections;
+          if (NumTriangleIntersections > 2) {
             continue;
           }
+
           real32 X = Intersect(Ray, Edge);
           scanline_intersection& Intersection = Scanline.Intersections[Scanline.NumIntersections];
           Intersection.Triangle = &Triangle;
@@ -164,12 +168,8 @@ PutPixel(int DisplayBuffer[], int X, int Y, int Pixel) {
 }
 
 void
-Rasterize(int DisplayBuffer[], scanline Scanlines[]) {
-  int32 Colors[] = { COLOR_BLACK, COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_RED | COLOR_GREEN, COLOR_RED | COLOR_BLUE, COLOR_GREEN | COLOR_BLUE, COLOR_WHITE };
-
+Rasterize(int DisplayBuffer[], scanline Scanlines[], materials Materials) {
   stack CurrentTriangle = {};
-
-  uint32 CurrentColorIndex = 0;
 
   for (int h=0; h < DISPLAY_HEIGHT; ++h) {
     scanline& Scanline = Scanlines[h];
@@ -179,21 +179,16 @@ Rasterize(int DisplayBuffer[], scanline Scanlines[]) {
       for (int s=0; s<Scanline.NumIntersections; ++s) {
         scanline_intersection &Intersection = Scanline.Intersections[s];
 
+        // TODO(AARON):
+        // Will have to take into account the Z-depth to resolve how overdraw works.
         if (Intersection.X == x) {
           triangle* Triangle;
 
-          if (Top(CurrentTriangle) == Intersection.Triangle) {
-            Pop(CurrentTriangle);
-
-            CurrentColorIndex--;
-            assert(CurrentColorIndex >= 0);
+          if (Find(CurrentTriangle, Intersection.Triangle)) {
+            Remove(CurrentTriangle, Intersection.Triangle);
           }
-
           else {
             Push(CurrentTriangle, Intersection.Triangle);
-
-            ++CurrentColorIndex;
-            assert(CurrentColorIndex <= 5);
           }
 
         }
@@ -201,7 +196,10 @@ Rasterize(int DisplayBuffer[], scanline Scanlines[]) {
 
       // NOTE(AARON): This may be a NULL pointer.
       triangle* Triangle = Top(CurrentTriangle);
-      int32 Color = Colors[CurrentColorIndex];
+      int32 Color = COLOR_BLACK;
+      if (Triangle) {
+        Color = FromMaterial(Materials, Triangle);
+      }
 
       PutPixel(DisplayBuffer, x, h, Color);
     }
@@ -216,17 +214,30 @@ main(int argc, char** argv) {
   int Pitch = 1;
   int* DisplayBuffer;
 
-  triangle Triangle = {};
-  Triangle.Point[0].X = 100;
-  Triangle.Point[0].Y = 200;
-  Triangle.Point[1].X = 750;
-  Triangle.Point[1].Y = 340;
-  Triangle.Point[2].X = 800;
-  Triangle.Point[2].Y = 640;
-  Triangle = OrderForRaster(Triangle);
-  FirstPoint = Triangle.A;
-  SecondPoint = Triangle.B;
-  ThirdPoint = Triangle.C;
+  triangle Triangle1 = {};
+  Triangle1.Point[0].X = 100;
+  Triangle1.Point[0].Y = 200;
+  Triangle1.Point[1].X = 750;
+  Triangle1.Point[1].Y = 340;
+  Triangle1.Point[2].X = 800;
+  Triangle1.Point[2].Y = 640;
+  Triangle1 = OrderForRaster(Triangle1);
+
+  triangle Triangle2 = {};
+  Triangle2.Point[0].X = 0;
+  Triangle2.Point[0].Y = 767;
+  Triangle2.Point[1].X = 1020;
+  Triangle2.Point[1].Y = 0;
+  Triangle2.Point[2].X = 1020;
+  Triangle2.Point[2].Y = 767;
+  Triangle2 = OrderForRaster(Triangle2);
+
+  int NumTriangles = 2;
+  triangle* Triangles[] = { &Triangle2, &Triangle1 };
+
+  materials Materials;
+  color Colors[] = { COLOR_RED, COLOR_BLUE };
+  InitMaterials(Materials, Triangles, Colors, NumTriangles);
 
   DisplayBuffer = (int*)malloc(DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
 
@@ -255,9 +266,8 @@ main(int argc, char** argv) {
 
   SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &Pitch);
 
-  GenerateScanlines(&Triangle, 1, Scanlines);
-
-  Rasterize(DisplayBuffer, Scanlines);
+  GenerateScanlines(Triangles, NumTriangles, Scanlines);
+  Rasterize(DisplayBuffer, Scanlines, Materials);
 
   SDL_UnlockTexture(Texture);
 
