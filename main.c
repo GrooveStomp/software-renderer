@@ -1,7 +1,7 @@
 #include "SDL.h"
 #include <stdio.h>
 #include <stdlib.h>
-//#include <stdbool.h>
+#include <stdbool.h>
 
 #include "types.h"
 
@@ -108,9 +108,9 @@ Intersect(ray2d Ray, line_segment Line) {
 }
 
 int
-ScanlineIntersectionSort(const void* Left, const void* Right) {
-  scanline_intersection First  = *((scanline_intersection*)Left);
-  scanline_intersection Second = *((scanline_intersection*)Right);
+ScanlineIntersectionSort(const void *Left, const void *Right) {
+  scanline_intersection First  = *((scanline_intersection *)Left);
+  scanline_intersection Second = *((scanline_intersection *)Right);
 
   if (First.X > Second.X) return 1;
   if (First.X < Second.X) return -1;
@@ -118,16 +118,16 @@ ScanlineIntersectionSort(const void* Left, const void* Right) {
 }
 
 void
-GenerateScanlines(triangle* Triangles[], int NumTriangles, scanline Scanlines[]) {
+GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) {
   for (int h = 0; h < DISPLAY_HEIGHT; h++) {
-    scanline& Scanline = Scanlines[h];
-    Scanline.NumIntersections = 0;
+    scanline *Scanline = &Scanlines[h];
+    Scanline->NumIntersections = 0;
 
     ray2d Ray = PositiveXVectorAtHeight(h);
 
     for (int t = 0; t < NumTriangles; t++) {
-      triangle& Triangle = *Triangles[t];
-      triangle_edges Edges = FromTriangle(Triangle);
+      triangle *Triangle = &Triangles[t];
+      triangle_edges Edges = FromTriangle(*Triangle);
 
       int NumTriangleIntersections = 0;
 
@@ -147,16 +147,16 @@ GenerateScanlines(triangle* Triangles[], int NumTriangles, scanline Scanlines[])
           }
 
           real32 X = Intersect(Ray, Edge);
-          scanline_intersection& Intersection = Scanline.Intersections[Scanline.NumIntersections];
-          Intersection.Triangle = &Triangle;
-          Intersection.X = X;
-          Scanline.NumIntersections++;
+          scanline_intersection *Intersection = &(Scanline->Intersections[Scanline->NumIntersections]);
+          Intersection->Triangle = Triangle;
+          Intersection->X = X;
+          Scanline->NumIntersections++;
         }
       }
     }
 
-    qsort(Scanline.Intersections,
-          Scanline.NumIntersections,
+    qsort(Scanline->Intersections,
+          Scanline->NumIntersections,
           sizeof(scanline_intersection),
           ScanlineIntersectionSort);
   }
@@ -169,36 +169,37 @@ PutPixel(int DisplayBuffer[], int X, int Y, int Pixel) {
 
 void
 Rasterize(int DisplayBuffer[], scanline Scanlines[], materials Materials) {
-  stack CurrentTriangle = {};
+  stack CurrentTriangle;
+  Init(&CurrentTriangle);
 
   for (int h=0; h < DISPLAY_HEIGHT; ++h) {
-    scanline& Scanline = Scanlines[h];
+    scanline *Scanline = &Scanlines[h];
 
     for (int x=0; x<DISPLAY_WIDTH; ++x) {
 
-      for (int s=0; s<Scanline.NumIntersections; ++s) {
-        scanline_intersection &Intersection = Scanline.Intersections[s];
+      for (int s=0; s<Scanline->NumIntersections; ++s) {
+        scanline_intersection *Intersection = &(Scanline->Intersections[s]);
 
         // TODO(AARON):
         // Will have to take into account the Z-depth to resolve how overdraw works.
-        if (Intersection.X == x) {
-          triangle* Triangle;
+        if (Intersection->X == x) {
+          triangle *Triangle;
 
-          if (Find(CurrentTriangle, Intersection.Triangle)) {
-            Remove(CurrentTriangle, Intersection.Triangle);
+          if (Find(&CurrentTriangle, Intersection->Triangle)) {
+            Remove(&CurrentTriangle, Intersection->Triangle);
           }
           else {
-            Push(CurrentTriangle, Intersection.Triangle);
+            Push(&CurrentTriangle, Intersection->Triangle);
           }
 
         }
       }
 
       // NOTE(AARON): This may be a NULL pointer.
-      triangle* Triangle = Top(CurrentTriangle);
+      triangle *Triangle = Top(&CurrentTriangle);
       int32 Color = COLOR_BLACK;
       if (Triangle) {
-        Color = FromMaterial(Materials, Triangle);
+        Color = FromMaterial(&Materials, Triangle);
       }
 
       PutPixel(DisplayBuffer, x, h, Color);
@@ -211,10 +212,10 @@ main(int argc, char** argv) {
   SDL_Window* Window;
   SDL_Renderer* Renderer;
   SDL_Texture* Texture;
-  int Pitch = 1;
+  int DisplayBufferPitch;
   int* DisplayBuffer;
 
-  triangle Triangle1 = {};
+  triangle Triangle1;
   Triangle1.Point[0].X = 100;
   Triangle1.Point[0].Y = 200;
   Triangle1.Point[1].X = 750;
@@ -223,7 +224,7 @@ main(int argc, char** argv) {
   Triangle1.Point[2].Y = 640;
   Triangle1 = OrderForRaster(Triangle1);
 
-  triangle Triangle2 = {};
+  triangle Triangle2;
   Triangle2.Point[0].X = 0;
   Triangle2.Point[0].Y = 767;
   Triangle2.Point[1].X = 1020;
@@ -233,11 +234,11 @@ main(int argc, char** argv) {
   Triangle2 = OrderForRaster(Triangle2);
 
   int NumTriangles = 2;
-  triangle* Triangles[] = { &Triangle2, &Triangle1 };
+  triangle Triangles[] = { Triangle2, Triangle1 };
 
   materials Materials;
   color Colors[] = { COLOR_RED, COLOR_BLUE };
-  InitMaterials(Materials, Triangles, Colors, NumTriangles);
+  InitMaterials(&Materials, Triangles, Colors, NumTriangles);
 
   DisplayBuffer = (int*)malloc(DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
 
@@ -264,7 +265,7 @@ main(int argc, char** argv) {
     return 1;
   }
 
-  SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &Pitch);
+  SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &DisplayBufferPitch);
 
   GenerateScanlines(Triangles, NumTriangles, Scanlines);
   Rasterize(DisplayBuffer, Scanlines, Materials);

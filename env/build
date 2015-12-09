@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-mkdir -p build
-pushd build > /dev/null
-c++ ../code/main.cpp `sdl2-config --cflags --libs` -o main -g
-popd > /dev/null
