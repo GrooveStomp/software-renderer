@@ -11,6 +11,7 @@ Eventually I would like to build this into a single-header static library like t
 # Dependencies
 - gcc
 - nemiver (for 'debug' command)
+- sdl2
 
 # Setup
 
