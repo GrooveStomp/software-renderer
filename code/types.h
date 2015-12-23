@@ -119,6 +119,7 @@ struct scanline_intersection {
   triangle* Triangle;
 };
 
+// TODO(AARON): Export this structure as public.
 struct scanline {
   // At most we can have pixel_width intersections, so we can have a linear array initialized to that size.
   scanline_intersection Intersections[DISPLAY_WIDTH];
