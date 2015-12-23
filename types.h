@@ -1,12 +1,10 @@
 #ifndef _TYPES_H
 #define _TYPES_H
 
-#if defined(ARO_WINDOWS)
-#include <windows.h>
-#endif
 #include <math.h>
 #include <stdint.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #define internal static
 #define local_persist static
@@ -33,29 +31,27 @@ typedef double real64;
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
-enum COLOR {
-  COLOR_NULL = 0x0,
-  COLOR_BLUE = 0x0000FF00,
-  COLOR_RED = 0xFF000000,
-  COLOR_GREEN = 0x00FF0000,
-  COLOR_BLACK = 0x000000FF,
-  COLOR_WHITE = 0xFFFFFFFF,
-  COLOR_YELLOW = COLOR_RED | COLOR_GREEN,
-  COLOR_OPAQUE = 0x000000FF
-};
+uint32_t COLOR_NULL = 0x00000000;
+uint32_t COLOR_BLUE = 0x0000FF00;
+uint32_t COLOR_RED = 0xFF000000;
+uint32_t COLOR_GREEN = 0x00FF0000;
+uint32_t COLOR_BLACK = 0x000000FF;
+uint32_t COLOR_WHITE = 0xFFFFFFFF;
+uint32_t COLOR_YELLOW = 0xFFFF00FF;
+uint32_t COLOR_OPAQUE = 0x000000FF;
 
 enum DISPLAY_SIZE {
   DISPLAY_WIDTH = 1024,
   DISPLAY_HEIGHT = 768
 };
 
-struct point2d{
+typedef struct point2d{
   real32 X;
   real32 Y;
-};
+} point2d;
 typedef point2d vector2d;
 
-struct ray2d {
+typedef struct ray2d {
   union {
     struct {
       point2d Pos;
@@ -68,9 +64,9 @@ struct ray2d {
       real32 Dy;
     };
   };
-};
+} ray2d;
 
-struct line_segment {
+typedef struct line_segment {
   union {
     struct {
       point2d Start;
@@ -83,10 +79,10 @@ struct line_segment {
       real32 EndY;
     };
   };
-};
+} line_segment;
 typedef line_segment edge;
 
-struct triangle {
+typedef struct triangle {
   union {
     point2d Point[3];
     struct {
@@ -95,9 +91,9 @@ struct triangle {
       point2d C;
     };
   };
-};
+} triangle;
 
-struct triangle_edges {
+typedef struct triangle_edges {
   union {
     edge Edges[3];
     struct {
@@ -106,40 +102,40 @@ struct triangle_edges {
       edge CA;
     };
   };
-};
+} triangle_edges;
 
-struct materials {
+typedef struct materials {
   triangle* Triangles[DISPLAY_WIDTH];
   color Colors[DISPLAY_WIDTH];
   int Count;
-};
+} materials;
 
-struct scanline_intersection {
+typedef struct scanline_intersection {
   uint32 X;
   triangle* Triangle;
-};
+} scanline_intersection;
 
 // TODO(AARON): Export this structure as public.
-struct scanline {
+typedef struct scanline {
   // At most we can have pixel_width intersections, so we can have a linear array initialized to that size.
   scanline_intersection Intersections[DISPLAY_WIDTH];
   uint32 NumIntersections;
-};
+} scanline;
 
-struct stack {
+typedef struct stack {
   triangle* Stack[DISPLAY_WIDTH];
   uint32 Head;
-};
+} stack;
 
 //------------------------------------------------------------------------------
 // Material Operations
 //------------------------------------------------------------------------------
 
 color
-FromMaterial(materials& Materials, triangle* Triangle) {
-  for (int i=0; i < Materials.Count; ++i) {
-    if (Materials.Triangles[i] == Triangle) {
-      return Materials.Colors[i];
+FromMaterial(materials *Materials, triangle *Triangle) {
+  for (int i=0; i < Materials->Count; ++i) {
+    if (Materials->Triangles[i] == Triangle) {
+      return Materials->Colors[i];
     }
   }
 
@@ -147,11 +143,11 @@ FromMaterial(materials& Materials, triangle* Triangle) {
 }
 
 void
-InitMaterials(materials& Materials, triangle* Triangles[], color Colors[], int Count) {
-  Materials.Count = Count;
+InitMaterials(materials *Materials, triangle Triangles[], color Colors[], int Count) {
+  Materials->Count = Count;
   for (int i=0; i< Count; ++i) {
-    Materials.Triangles[i] = Triangles[i];
-    Materials.Colors[i] = Colors[i];
+    Materials->Triangles[i] = &Triangles[i];
+    Materials->Colors[i] = Colors[i];
   }
 }
 
@@ -160,46 +156,46 @@ InitMaterials(materials& Materials, triangle* Triangles[], color Colors[], int C
 //------------------------------------------------------------------------------
 
 void
-Init(stack& Stack) {
-  Stack.Head = 0;
+Init(stack *Stack) {
+  Stack->Head = 0;
 }
 
 bool
-IsEmpty(stack& Stack) {
-  return (Stack.Head == 0);
+IsEmpty(stack *Stack) {
+  return (Stack->Head == 0);
 }
 
 uint32
-Size(stack& Stack) {
-  return Stack.Head;
+Size(stack *Stack) {
+  return Stack->Head;
 }
 
 bool
-Push(stack& Stack, triangle* Object) {
-  ++Stack.Head;
-  Stack.Stack[Stack.Head] = Object;
+Push(stack *Stack, triangle *Object) {
+  ++Stack->Head;
+  Stack->Stack[Stack->Head] = Object;
   return true;
 }
 
-triangle*
-Pop(stack& Stack) {
-  if (Stack.Head <= 0) return NULL;
+triangle *
+Pop(stack *Stack) {
+  if (Stack->Head <= 0) return NULL;
 
-  triangle* Result = Stack.Stack[Stack.Head];
-  --Stack.Head;
+  triangle *Result = Stack->Stack[Stack->Head];
+  --Stack->Head;
 
   return Result;
 }
 
-triangle*
-Top(stack& Stack) {
-  return Stack.Stack[Stack.Head];
+triangle *
+Top(stack *Stack) {
+  return Stack->Stack[Stack->Head];
 }
 
 bool
-Find(stack& Stack, triangle* Object) {
-  for (int i=0; i<=Stack.Head; ++i) {
-    if (Stack.Stack[i] == Object) {
+Find(stack *Stack, triangle *Object) {
+  for (int i=0; i<=Stack->Head; ++i) {
+    if (Stack->Stack[i] == Object) {
       return true;
     }
   }
@@ -208,10 +204,10 @@ Find(stack& Stack, triangle* Object) {
 }
 
 bool
-Remove(stack& Stack, triangle* Object) {
+Remove(stack *Stack, triangle *Object) {
   int index = -1;
-  for (int i=0; i <= Stack.Head; ++i) {
-    if (Stack.Stack[i] == Object) {
+  for (int i=0; i <= Stack->Head; ++i) {
+    if (Stack->Stack[i] == Object) {
       index = i;
       break;
     }
@@ -221,10 +217,10 @@ Remove(stack& Stack, triangle* Object) {
     return false;
   }
 
-  for (int i=index; i< Stack.Head; ++i) {
-    Stack.Stack[i] = Stack.Stack[i+1];
+  for (int i=index; i < Stack->Head; ++i) {
+    Stack->Stack[i] = Stack->Stack[i+1];
   }
-  --Stack.Head;
+  --Stack->Head;
 
   return true;
 }

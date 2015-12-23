@@ -1,4 +1,26 @@
 #!/usr/bin/env bash
-export PATH=/home/aaron/code/software-renderer/env:$PATH
-alias debugger="/usr/bin/kdevelop > /dev/null 2>&1 &"
-alias run="build/main"
+#-*- mode: sh -*-
+
+export PROJECT_ROOT=$(pwd)
+export PATH=$PROJECT_ROOT/env:$PATH
+
+function build() {
+    if [ ! -f env/build ]; then
+        mkdir -p env/build
+    fi
+
+    gcc -std=c11 -pedantic-errors -fextended-identifiers -g -x c -o env/build/run main.c `sdl2-config --cflags --libs`
+}
+
+function run() {
+    if [ -f env/build/run ]; then
+        env/build/run
+    fi
+}
+
+function debug() {
+    nemiver=`which nemiver`
+    if [[ -f env/build/run ]] && [[ ! -z "$nemiver" ]]; then
+        $($nemiver env/build/run)
+    fi
+}
