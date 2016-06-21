@@ -135,11 +135,11 @@ color
 FromMaterial(materials *Materials, triangle *Triangle) {
         for (int i=0; i < Materials->Count; ++i) {
                 if (Materials->Triangles[i] == Triangle) {
-                        return Materials->Colors[i];
+                        return(Materials->Colors[i]);
                 }
         }
 
-        return COLOR_NULL;
+        return(COLOR_NULL);
 }
 
 void
@@ -162,45 +162,45 @@ Init(stack *Stack) {
 
 bool
 IsEmpty(stack *Stack) {
-        return (Stack->Head == 0);
+        return(Stack->Head == 0);
 }
 
 uint32
 Size(stack *Stack) {
-        return Stack->Head;
+        return(Stack->Head);
 }
 
 bool
 Push(stack *Stack, triangle *Object) {
         ++Stack->Head;
         Stack->Stack[Stack->Head] = Object;
-        return true;
+        return(true);
 }
 
 triangle *
 Pop(stack *Stack) {
-        if (Stack->Head <= 0) return NULL;
+        if (Stack->Head <= 0) return(NULL);
 
         triangle *Result = Stack->Stack[Stack->Head];
         --Stack->Head;
 
-        return Result;
+        return(Result);
 }
 
 triangle *
 Top(stack *Stack) {
-        return Stack->Stack[Stack->Head];
+        return(Stack->Stack[Stack->Head]);
 }
 
 bool
 Find(stack *Stack, triangle *Object) {
         for (int i=0; i<=Stack->Head; ++i) {
                 if (Stack->Stack[i] == Object) {
-                        return true;
+                        return(true);
                 }
         }
 
-        return false;
+        return(false);
 }
 
 bool
@@ -214,7 +214,7 @@ Remove(stack *Stack, triangle *Object) {
         }
 
         if (index < 0) {
-                return false;
+                return(false);
         }
 
         for (int i=index; i < Stack->Head; ++i) {
@@ -222,7 +222,7 @@ Remove(stack *Stack, triangle *Object) {
         }
         --Stack->Head;
 
-        return true;
+        return(true);
 }
 
 //------------------------------------------------------------------------------
@@ -233,43 +233,46 @@ point2d Add(point2d First, point2d Second) {
         point2d Result;
         Result.X = First.X + Second.X;
         Result.Y = First.Y + Second.Y;
-        return Result;
+        return(Result);
 }
 
 point2d Apply(point2d Point, real32 T) {
         point2d Result;
         Result.X = Point.X * T;
         Result.Y = Point.Y * T;
-        return Result;
+        return(Result);
 }
 
 point2d Evaluate(ray2d Ray, real32 T) {
-        return Add(Ray.Pos, Apply(Ray.Dir, T));
+        vector2d Applied = Apply(Ray.Dir, T);
+        point2d Result = Add(Ray.Pos, Applied);
+        return(Result);
 }
 
 point2d Subtract(point2d Minuend, point2d Subtrahend) {
         point2d Result;
         Result.X = Minuend.X - Subtrahend.X;
         Result.Y = Minuend.Y - Subtrahend.Y;
-        return Result;
+        return(Result);
 }
 
 line_segment FromPoints(point2d Start, point2d End) {
         line_segment Result;
         Result.Start = Start;
         Result.End = End;
-        return Result;
+        return(Result);
 }
 
 ray2d FromLineSegment(line_segment Segment) {
         ray2d Result;
         Result.Pos = Segment.Start;
         Result.Dir = Subtract(Segment.End, Segment.Start);
-        return Result;
+        return(Result);
 }
 
 line_segment FromEdge(edge Edge) {
-        return FromPoints(Edge.Start, Edge.End);
+        line_segment Result = FromPoints(Edge.Start, Edge.End);
+        return(Result);
 }
 
 #endif // ifndef _TYPES_H

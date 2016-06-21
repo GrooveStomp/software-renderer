@@ -41,7 +41,7 @@ OrderForRaster(triangle Unordered) {
         triangle Result;
 
         if (Unordered.A.Y > Unordered.B.Y && Unordered.A.Y > Unordered.C.Y) {
-                return Unordered;
+                return(Unordered);
         }
         else if (Unordered.B.Y > Unordered.A.Y && Unordered.B.Y > Unordered.C.Y) {
                 Result.A = Unordered.B;
@@ -53,7 +53,7 @@ OrderForRaster(triangle Unordered) {
                 Result.B = Unordered.A;
                 Result.C = Unordered.B;
         }
-        return Result;
+        return(Result);
 }
 
 triangle_edges
@@ -69,7 +69,7 @@ FromTriangle(triangle Triangle) {
         Result.Edges[2].Start = Triangle.Point[2];
         Result.Edges[2].End = Triangle.Point[0];
 
-        return Result;
+        return(Result);
 }
 
 ray2d
@@ -79,7 +79,7 @@ PositiveXVectorAtHeight(int Height) {
         Result.Y = (real32)Height;
         Result.Dx = 1;
         Result.Dy = 0;
-        return Result;
+        return(Result);
 }
 
 /* This assumes a horizontal +X Vector. */
@@ -87,7 +87,7 @@ bool
 HasIntersection(ray2d Ray, line_segment Line) {
         int32 A = Line.EndY - Ray.Y;
         int32 B = Line.StartY - Ray.Y;
-        return ((A ^ B) < 0) || Line.EndY == Ray.Y || Line.StartY == Ray.Y;
+        return(((A ^ B) < 0) || Line.EndY == Ray.Y || Line.StartY == Ray.Y);
 }
 
 real32
@@ -100,10 +100,10 @@ Intersect(ray2d Ray, line_segment Line) {
         real32 Term2 = (DeltaY * (Slope.X / Slope.Y));
 
         if (IsNegative) {
-                return Line.StartX - Term2;
+                return(Line.StartX - Term2);
         }
         else {
-                return Line.StartX + Term2;
+                return(Line.StartX + Term2);
         }
 }
 
@@ -112,9 +112,9 @@ ScanlineIntersectionSort(const void *Left, const void *Right) {
         scanline_intersection First  = *((scanline_intersection *)Left);
         scanline_intersection Second = *((scanline_intersection *)Right);
 
-        if (First.X > Second.X) return 1;
-        if (First.X < Second.X) return -1;
-        return 0;
+        if (First.X > Second.X) return(1);
+        if (First.X < Second.X) return(-1);
+        return(0);
 }
 
 void
@@ -244,25 +244,25 @@ main(int argc, char** argv) {
 
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) != 0) {
                 fprintf(stderr, "\nUnable to initialize SDL: %s\n", SDL_GetError());
-                return 1;
+                return(1);
         }
 
         Window = SDL_CreateWindow("My Awesome Window", 100, 100, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0);
         if (Window == NULL) {
                 fprintf(stderr, "\nCouldn't create window: %s\n", SDL_GetError());
-                return 1;
+                return(1);
         }
 
         Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_SOFTWARE);
         if (Renderer == NULL) {
                 fprintf(stderr, "\nCouldn't create renderer: %s\n", SDL_GetError());
-                return 1;
+                return(1);
         }
 
         Texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, DISPLAY_WIDTH, DISPLAY_HEIGHT);
         if (Texture == NULL) {
                 fprintf(stderr, "\nCouldn't create texture: %s\n", SDL_GetError());
-                return 1;
+                return(1);
         }
 
         SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &DisplayBufferPitch);
@@ -305,5 +305,5 @@ main(int argc, char** argv) {
         SDL_DestroyWindow(Window);
         SDL_Quit();
 
-        return 0;
+        return(0);
 }
