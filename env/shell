@@ -13,14 +13,30 @@ function build() {
 }
 
 function run() {
+    if [[ "-h" == $1 ]] || [[ "--help" == $1 ]]; then
+        echo "Usage: run [parameters]"
+        echo
+        echo "parameters: Anything specified here will be passed to the running program"
+        echo
+        return
+    fi
+
     if [ -f env/build/run ]; then
-        env/build/run
+        env/build/run "$@"
     fi
 }
 
 function debug() {
-    nemiver=`which nemiver`
-    if [[ -f env/build/run ]] && [[ ! -z "$nemiver" ]]; then
-        $($nemiver env/build/run)
+    if [[ "-h" == $1 ]] || [[ "--help" == $1 ]]; then
+        echo "Usage: debug [parameters]"
+        echo
+        echo "parameters: Anything specified here will be passed to the running program"
+        echo
+        return
+    fi
+
+    local debugger=`which kdbg`
+    if [[ -f env/build/run ]] && [[ ! -z "$debugger" ]]; then
+        $($debugger env/build/run -a "$@")
     fi
 }
