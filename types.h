@@ -229,48 +229,55 @@ Remove(stack *Stack, triangle *Object) {
 // Ray, Point and other similar operations
 //------------------------------------------------------------------------------
 
-point2d Add(point2d First, point2d Second) {
+point2d
+Add(point2d First, point2d Second) {
         point2d Result;
         Result.X = First.X + Second.X;
         Result.Y = First.Y + Second.Y;
         return(Result);
 }
 
-point2d Apply(point2d Point, real32 T) {
+point2d
+Apply(point2d Point, real32 T) {
         point2d Result;
         Result.X = Point.X * T;
         Result.Y = Point.Y * T;
         return(Result);
 }
 
-point2d Evaluate(ray2d Ray, real32 T) {
+point2d
+Evaluate(ray2d Ray, real32 T) {
         vector2d Applied = Apply(Ray.Dir, T);
         point2d Result = Add(Ray.Pos, Applied);
         return(Result);
 }
 
-point2d Subtract(point2d Minuend, point2d Subtrahend) {
+point2d
+Subtract(point2d Minuend, point2d Subtrahend) {
         point2d Result;
         Result.X = Minuend.X - Subtrahend.X;
         Result.Y = Minuend.Y - Subtrahend.Y;
         return(Result);
 }
 
-line_segment FromPoints(point2d Start, point2d End) {
+line_segment
+FromPoints(point2d Start, point2d End) {
         line_segment Result;
         Result.Start = Start;
         Result.End = End;
         return(Result);
 }
 
-ray2d FromLineSegment(line_segment Segment) {
+ray2d
+FromLineSegment(line_segment Segment) {
         ray2d Result;
         Result.Pos = Segment.Start;
         Result.Dir = Subtract(Segment.End, Segment.Start);
         return(Result);
 }
 
-line_segment FromEdge(edge Edge) {
+line_segment
+FromEdge(edge Edge) {
         line_segment Result = FromPoints(Edge.Start, Edge.End);
         return(Result);
 }
