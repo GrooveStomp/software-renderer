@@ -6,6 +6,14 @@
 #include "types.h"
 
 /*
+  NOTE(AARON, 2016-06-21):
+  At this point (2016-06-21) this program only handles scanline rasterization.
+  The assumption is that we have a collection of adjacent, non-overlapping
+  triangles in screen space.  These triangles are the end result of the 3D
+  rendering engine and no longer need Z-depth.
+*/
+
+/*
   NOTE(AARON):
   Given a polygon in viewspace ((0,0), (640,480)) we want to rasterize the polygon
   onto our viewspace buffer.
