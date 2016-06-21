@@ -41,90 +41,90 @@ uint32_t COLOR_YELLOW = 0xFFFF00FF;
 uint32_t COLOR_OPAQUE = 0x000000FF;
 
 enum DISPLAY_SIZE {
-  DISPLAY_WIDTH = 1024,
-  DISPLAY_HEIGHT = 768
+        DISPLAY_WIDTH = 1024,
+        DISPLAY_HEIGHT = 768
 };
 
 typedef struct point2d{
-  real32 X;
-  real32 Y;
+        real32 X;
+        real32 Y;
 } point2d;
 typedef point2d vector2d;
 
 typedef struct ray2d {
-  union {
-    struct {
-      point2d Pos;
-      point2d Dir;
-    };
-    struct {
-      real32 X;
-      real32 Y;
-      real32 Dx;
-      real32 Dy;
-    };
-  };
+        union {
+                struct {
+                        point2d Pos;
+                        point2d Dir;
+                };
+                struct {
+                        real32 X;
+                        real32 Y;
+                        real32 Dx;
+                        real32 Dy;
+                };
+        };
 } ray2d;
 
 typedef struct line_segment {
-  union {
-    struct {
-      point2d Start;
-      point2d End;
-    };
-    struct {
-      real32 StartX;
-      real32 StartY;
-      real32 EndX;
-      real32 EndY;
-    };
-  };
+        union {
+                struct {
+                        point2d Start;
+                        point2d End;
+                };
+                struct {
+                        real32 StartX;
+                        real32 StartY;
+                        real32 EndX;
+                        real32 EndY;
+                };
+        };
 } line_segment;
 typedef line_segment edge;
 
 typedef struct triangle {
-  union {
-    point2d Point[3];
-    struct {
-      point2d A;
-      point2d B;
-      point2d C;
-    };
-  };
+        union {
+                point2d Point[3];
+                struct {
+                        point2d A;
+                        point2d B;
+                        point2d C;
+                };
+        };
 } triangle;
 
 typedef struct triangle_edges {
-  union {
-    edge Edges[3];
-    struct {
-      edge AB;
-      edge BC;
-      edge CA;
-    };
-  };
+        union {
+                edge Edges[3];
+                struct {
+                        edge AB;
+                        edge BC;
+                        edge CA;
+                };
+        };
 } triangle_edges;
 
 typedef struct materials {
-  triangle* Triangles[DISPLAY_WIDTH];
-  color Colors[DISPLAY_WIDTH];
-  int Count;
+        triangle* Triangles[DISPLAY_WIDTH];
+        color Colors[DISPLAY_WIDTH];
+        int Count;
 } materials;
 
 typedef struct scanline_intersection {
-  uint32 X;
-  triangle* Triangle;
+        uint32 X;
+        triangle* Triangle;
 } scanline_intersection;
 
 // TODO(AARON): Export this structure as public.
 typedef struct scanline {
-  // At most we can have pixel_width intersections, so we can have a linear array initialized to that size.
-  scanline_intersection Intersections[DISPLAY_WIDTH];
-  uint32 NumIntersections;
+        // At most we can have pixel_width intersections, so we can have a linear array initialized to that size.
+        scanline_intersection Intersections[DISPLAY_WIDTH];
+        uint32 NumIntersections;
 } scanline;
 
 typedef struct stack {
-  triangle* Stack[DISPLAY_WIDTH];
-  uint32 Head;
+        triangle* Stack[DISPLAY_WIDTH];
+        uint32 Head;
 } stack;
 
 //------------------------------------------------------------------------------
@@ -133,22 +133,22 @@ typedef struct stack {
 
 color
 FromMaterial(materials *Materials, triangle *Triangle) {
-  for (int i=0; i < Materials->Count; ++i) {
-    if (Materials->Triangles[i] == Triangle) {
-      return Materials->Colors[i];
-    }
-  }
+        for (int i=0; i < Materials->Count; ++i) {
+                if (Materials->Triangles[i] == Triangle) {
+                        return Materials->Colors[i];
+                }
+        }
 
-  return COLOR_NULL;
+        return COLOR_NULL;
 }
 
 void
 InitMaterials(materials *Materials, triangle Triangles[], color Colors[], int Count) {
-  Materials->Count = Count;
-  for (int i=0; i< Count; ++i) {
-    Materials->Triangles[i] = &Triangles[i];
-    Materials->Colors[i] = Colors[i];
-  }
+        Materials->Count = Count;
+        for (int i=0; i< Count; ++i) {
+                Materials->Triangles[i] = &Triangles[i];
+                Materials->Colors[i] = Colors[i];
+        }
 }
 
 //------------------------------------------------------------------------------
@@ -157,72 +157,72 @@ InitMaterials(materials *Materials, triangle Triangles[], color Colors[], int Co
 
 void
 Init(stack *Stack) {
-  Stack->Head = 0;
+        Stack->Head = 0;
 }
 
 bool
 IsEmpty(stack *Stack) {
-  return (Stack->Head == 0);
+        return (Stack->Head == 0);
 }
 
 uint32
 Size(stack *Stack) {
-  return Stack->Head;
+        return Stack->Head;
 }
 
 bool
 Push(stack *Stack, triangle *Object) {
-  ++Stack->Head;
-  Stack->Stack[Stack->Head] = Object;
-  return true;
+        ++Stack->Head;
+        Stack->Stack[Stack->Head] = Object;
+        return true;
 }
 
 triangle *
 Pop(stack *Stack) {
-  if (Stack->Head <= 0) return NULL;
+        if (Stack->Head <= 0) return NULL;
 
-  triangle *Result = Stack->Stack[Stack->Head];
-  --Stack->Head;
+        triangle *Result = Stack->Stack[Stack->Head];
+        --Stack->Head;
 
-  return Result;
+        return Result;
 }
 
 triangle *
 Top(stack *Stack) {
-  return Stack->Stack[Stack->Head];
+        return Stack->Stack[Stack->Head];
 }
 
 bool
 Find(stack *Stack, triangle *Object) {
-  for (int i=0; i<=Stack->Head; ++i) {
-    if (Stack->Stack[i] == Object) {
-      return true;
-    }
-  }
+        for (int i=0; i<=Stack->Head; ++i) {
+                if (Stack->Stack[i] == Object) {
+                        return true;
+                }
+        }
 
-  return false;
+        return false;
 }
 
 bool
 Remove(stack *Stack, triangle *Object) {
-  int index = -1;
-  for (int i=0; i <= Stack->Head; ++i) {
-    if (Stack->Stack[i] == Object) {
-      index = i;
-      break;
-    }
-  }
+        int index = -1;
+        for (int i=0; i <= Stack->Head; ++i) {
+                if (Stack->Stack[i] == Object) {
+                        index = i;
+                        break;
+                }
+        }
 
-  if (index < 0) {
-    return false;
-  }
+        if (index < 0) {
+                return false;
+        }
 
-  for (int i=index; i < Stack->Head; ++i) {
-    Stack->Stack[i] = Stack->Stack[i+1];
-  }
-  --Stack->Head;
+        for (int i=index; i < Stack->Head; ++i) {
+                Stack->Stack[i] = Stack->Stack[i+1];
+        }
+        --Stack->Head;
 
-  return true;
+        return true;
 }
 
 //------------------------------------------------------------------------------
@@ -230,46 +230,46 @@ Remove(stack *Stack, triangle *Object) {
 //------------------------------------------------------------------------------
 
 point2d Add(point2d First, point2d Second) {
-  point2d Result;
-  Result.X = First.X + Second.X;
-  Result.Y = First.Y + Second.Y;
-  return Result;
+        point2d Result;
+        Result.X = First.X + Second.X;
+        Result.Y = First.Y + Second.Y;
+        return Result;
 }
 
 point2d Apply(point2d Point, real32 T) {
-  point2d Result;
-  Result.X = Point.X * T;
-  Result.Y = Point.Y * T;
-  return Result;
+        point2d Result;
+        Result.X = Point.X * T;
+        Result.Y = Point.Y * T;
+        return Result;
 }
 
 point2d Evaluate(ray2d Ray, real32 T) {
-  return Add(Ray.Pos, Apply(Ray.Dir, T));
+        return Add(Ray.Pos, Apply(Ray.Dir, T));
 }
 
 point2d Subtract(point2d Minuend, point2d Subtrahend) {
-  point2d Result;
-  Result.X = Minuend.X - Subtrahend.X;
-  Result.Y = Minuend.Y - Subtrahend.Y;
-  return Result;
+        point2d Result;
+        Result.X = Minuend.X - Subtrahend.X;
+        Result.Y = Minuend.Y - Subtrahend.Y;
+        return Result;
 }
 
 line_segment FromPoints(point2d Start, point2d End) {
-  line_segment Result;
-  Result.Start = Start;
-  Result.End = End;
-  return Result;
+        line_segment Result;
+        Result.Start = Start;
+        Result.End = End;
+        return Result;
 }
 
 ray2d FromLineSegment(line_segment Segment) {
-  ray2d Result;
-  Result.Pos = Segment.Start;
-  Result.Dir = Subtract(Segment.End, Segment.Start);
-  return Result;
+        ray2d Result;
+        Result.Pos = Segment.Start;
+        Result.Dir = Subtract(Segment.End, Segment.Start);
+        return Result;
 }
 
 line_segment FromEdge(edge Edge) {
-  return FromPoints(Edge.Start, Edge.End);
+        return FromPoints(Edge.Start, Edge.End);
 }
 
 #endif // ifndef _TYPES_H
