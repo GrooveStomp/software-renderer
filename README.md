@@ -65,7 +65,6 @@ rendering engine and no longer need Z-depth.
 # To Do
 
 - Fix rasterization bug. (See horizontal yellow line in rendering.)
-- Improve style consistency in codebase.
 - Improve APIs; define an actual API. (Think about usage!)
 - Define materials beyond simple colors.
 - Interpolate materials across triangle surfaces.

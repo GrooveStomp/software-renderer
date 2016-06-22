@@ -1,30 +1,25 @@
 #include "SDL.h"
-#include <stdio.h>
 #include <alloca.h>
-#include <stdlib.h>
 
-typedef int bool;
-#define false 0
-#define true !false
-#define ARRAY_SIZE(Array) (sizeof((Array)) / sizeof((Array)[0]))
-
-#include "types.h"
-#include "file_io.c"
-#include "string.c"
+#include "util.c"
+#include "types.c"
 
 global_variable scanline Scanlines[DISPLAY_HEIGHT];
 
 void
-OrderForRaster(triangle *Unordered) {
+OrderForRaster(triangle *Unordered)
+{
         // Counter-clockwise.
         // Bottom-left starting.
 
         triangle Temp;
 
-        if (Unordered->A.Y > Unordered->B.Y && Unordered->A.Y > Unordered->C.Y) {
+        if(Unordered->A.Y > Unordered->B.Y && Unordered->A.Y > Unordered->C.Y)
+        {
                 ;
         }
-        else if (Unordered->B.Y > Unordered->A.Y && Unordered->B.Y > Unordered->C.Y) {
+        else if(Unordered->B.Y > Unordered->A.Y && Unordered->B.Y > Unordered->C.Y)
+        {
                 Temp.A = Unordered->B;
                 Temp.B = Unordered->C;
                 Temp.C = Unordered->A;
@@ -32,7 +27,8 @@ OrderForRaster(triangle *Unordered) {
                 Unordered->B = Temp.B;
                 Unordered->C = Temp.C;
         }
-        else {
+        else
+        {
                 Temp.A = Unordered->C;
                 Temp.B = Unordered->A;
                 Temp.C = Unordered->B;
@@ -43,7 +39,8 @@ OrderForRaster(triangle *Unordered) {
 }
 
 triangle_edges
-FromTriangle(triangle Triangle) {
+FromTriangle(triangle Triangle)
+{
         triangle_edges Result;
 
         Result.Edges[0].Start = Triangle.Point[0];
@@ -59,7 +56,8 @@ FromTriangle(triangle Triangle) {
 }
 
 ray2d
-PositiveXVectorAtHeight(int Height) {
+PositiveXVectorAtHeight(int Height)
+{
         ray2d Result;
         Result.X = 0;
         Result.Y = (real32)Height;
@@ -70,14 +68,16 @@ PositiveXVectorAtHeight(int Height) {
 
 /* This assumes a horizontal +X Vector. */
 bool
-HasIntersection(ray2d Ray, line_segment Line) {
+HasIntersection(ray2d Ray, line_segment Line)
+{
         int32 A = Line.EndY - Ray.Y;
         int32 B = Line.StartY - Ray.Y;
         return(((A ^ B) < 0) || Line.EndY == Ray.Y || Line.StartY == Ray.Y);
 }
 
 real32
-Intersect(ray2d Ray, line_segment Line) {
+Intersect(ray2d Ray, line_segment Line)
+{
         vector2d Slope = Subtract(Line.End, Line.Start);
         bool IsNegative = (Slope.X < 0 || Slope.Y < 0);
 
@@ -85,42 +85,51 @@ Intersect(ray2d Ray, line_segment Line) {
 
         real32 Term2 = (DeltaY * (Slope.X / Slope.Y));
 
-        if (IsNegative) {
+        if(IsNegative)
+        {
                 return(Line.StartX - Term2);
         }
-        else {
+        else
+        {
                 return(Line.StartX + Term2);
         }
 }
 
 int
-ScanlineIntersectionSort(const void *Left, const void *Right) {
+ScanlineIntersectionSort(const void *Left, const void *Right)
+{
         scanline_intersection First  = *((scanline_intersection *)Left);
         scanline_intersection Second = *((scanline_intersection *)Right);
 
-        if (First.X > Second.X) return(1);
-        if (First.X < Second.X) return(-1);
+        if(First.X > Second.X) return(1);
+        if(First.X < Second.X) return(-1);
+
         return(0);
 }
 
 void
-GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) {
-        for (int h = 0; h < DISPLAY_HEIGHT; h++) {
+GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[])
+{
+        for(int h = 0; h < DISPLAY_HEIGHT; h++)
+        {
                 scanline *Scanline = &Scanlines[h];
                 Scanline->NumIntersections = 0;
 
                 ray2d Ray = PositiveXVectorAtHeight(h);
 
-                for (int t = 0; t < NumTriangles; t++) {
+                for(int t = 0; t < NumTriangles; t++)
+                {
                         triangle *Triangle = &Triangles[t];
                         triangle_edges Edges = FromTriangle(*Triangle);
 
                         int NumTriangleIntersections = 0;
 
-                        for (int i=0; i < 3; ++i) {
+                        for(int i=0; i < 3; ++i)
+                        {
                                 line_segment Edge = FromPoints(Edges.Edges[i].Start, Edges.Edges[i].End);
 
-                                if (HasIntersection(Ray, Edge)) {
+                                if(HasIntersection(Ray, Edge))
+                                {
                                         // NOTE(AARON):
                                         // For a given triangle we expect to only have two intersections, max.
                                         // More than this causes rendering artifacts because any two edges
@@ -128,7 +137,8 @@ GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) 
                                         // intersection points get recalculated, which will cause problems
                                         // at rasterization.
                                         ++NumTriangleIntersections;
-                                        if (NumTriangleIntersections > 2) {
+                                        if(NumTriangleIntersections > 2)
+                                        {
                                                 continue;
                                         }
 
@@ -149,32 +159,38 @@ GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[]) 
 }
 
 void
-PutPixel(int DisplayBuffer[], int X, int Y, int Pixel) {
+PutPixel(int DisplayBuffer[], int X, int Y, int Pixel)
+{
         DisplayBuffer[(Y * DISPLAY_WIDTH) + X] = Pixel;
 }
 
 void
-Rasterize(int DisplayBuffer[], scanline Scanlines[], materials Materials) {
+Rasterize(int DisplayBuffer[], scanline Scanlines[], materials Materials)
+{
         stack CurrentTriangle;
         Init(&CurrentTriangle);
 
-        for (int h=0; h < DISPLAY_HEIGHT; ++h) {
+        for(int h=0; h < DISPLAY_HEIGHT; ++h)
+        {
                 scanline *Scanline = &Scanlines[h];
 
-                for (int x=0; x<DISPLAY_WIDTH; ++x) {
+                for(int x=0; x<DISPLAY_WIDTH; ++x)
+                {
 
-                        for (int s=0; s<Scanline->NumIntersections; ++s) {
+                        for(int s=0; s<Scanline->NumIntersections; ++s)
+                        {
                                 scanline_intersection *Intersection = &(Scanline->Intersections[s]);
 
-                                // TODO(AARON):
-                                // Will have to take into account the Z-depth to resolve how overdraw works.
-                                if (Intersection->X == x) {
+                                if(Intersection->X == x)
+                                {
                                         triangle *Triangle;
 
-                                        if (Find(&CurrentTriangle, Intersection->Triangle)) {
+                                        if(Find(&CurrentTriangle, Intersection->Triangle))
+                                        {
                                                 Remove(&CurrentTriangle, Intersection->Triangle);
                                         }
-                                        else {
+                                        else
+                                        {
                                                 Push(&CurrentTriangle, Intersection->Triangle);
                                         }
 
@@ -183,8 +199,9 @@ Rasterize(int DisplayBuffer[], scanline Scanlines[], materials Materials) {
 
                         // NOTE(AARON): This may be a NULL pointer.
                         triangle *Triangle = Top(&CurrentTriangle);
-                        int32 Color = COLOR_BLACK;
-                        if (Triangle) {
+                        int32 Color = 0x00000000;
+                        if(Triangle)
+                        {
                                 Color = FromMaterial(&Materials, Triangle);
                         }
 
@@ -208,7 +225,7 @@ void
 GetTrianglesFromFile(char *Filename, triangle **Triangles, color **Colors, int *Count)
 {
         size_t AllocSize = FileSize(Filename);
-        struct buffer FileContents;
+        buffer FileContents;
 
         /* Allocate space on the stack. */
         BufferSet(&FileContents, (char *)alloca(AllocSize), 0, AllocSize);
@@ -219,9 +236,9 @@ GetTrianglesFromFile(char *Filename, triangle **Triangles, color **Colors, int *
 
         /* Determine how many triangles we need to create. */
         int NumTriangles = 0;
-        struct buffer Reader;
+        buffer Reader;
         CopyBuffer(&FileContents, &Reader);
-        for (int i=0; i<FileContents.Length; i++)
+        for(int i=0; i<FileContents.Length; i++)
         {
                 if(*(Reader.Cursor) == '\n') NumTriangles++;
                 Reader.Cursor++;
@@ -231,7 +248,7 @@ GetTrianglesFromFile(char *Filename, triangle **Triangles, color **Colors, int *
         *Triangles = (triangle *)malloc(sizeof(triangle) * NumTriangles);
         *Colors = (color *)malloc(sizeof(color) * NumTriangles);
 
-        for (int i=0; i<NumTriangles; i++)
+        for(int i=0; i<NumTriangles; i++)
         {
                 triangle *Triangle = &(*Triangles)[i];
 
@@ -260,7 +277,8 @@ Usage()
 }
 
 int
-main(int ArgCount, char** Args) {
+main(int ArgCount, char** Args)
+{
         for(int i=0; i<ArgCount; i++)
         {
                 if(StringEqual(Args[i], "-h", StringLength("-h")) ||
@@ -286,18 +304,19 @@ main(int ArgCount, char** Args) {
 
         DisplayBuffer = (int*)malloc(DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
 
-        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) != 0) {
+        if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) != 0)
+        {
                 AbortWithMessage(SDL_GetError());
         }
 
         Window = SDL_CreateWindow("My Awesome Window", 100, 100, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0);
-        if (Window == NULL) AbortWithMessage(SDL_GetError());
+        if(Window == NULL) AbortWithMessage(SDL_GetError());
 
         Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_SOFTWARE);
-        if (Renderer == NULL) AbortWithMessage(SDL_GetError());
+        if(Renderer == NULL) AbortWithMessage(SDL_GetError());
 
         Texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, DISPLAY_WIDTH, DISPLAY_HEIGHT);
-        if (Texture == NULL) AbortWithMessage(SDL_GetError());
+        if(Texture == NULL) AbortWithMessage(SDL_GetError());
 
         SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &DisplayBufferPitch);
 
@@ -307,21 +326,28 @@ main(int ArgCount, char** Args) {
         SDL_UnlockTexture(Texture);
 
         bool32 Running = true;
-        while(Running) {
+        while(Running)
+        {
                 SDL_Event Event;
 
-                while(SDL_PollEvent(&Event)) {
-                        switch(Event.type) {
-                                case SDL_QUIT: {
+                while(SDL_PollEvent(&Event))
+                {
+                        switch(Event.type)
+                        {
+                                case SDL_QUIT:
+                                {
                                         Running = false;
                                 } break;
 
                                 case SDL_KEYDOWN:
-                                case SDL_KEYUP: {
+                                case SDL_KEYUP:
+                                {
                                         SDL_Keycode KeyCode = Event.key.keysym.sym;
 
-                                        if(Event.key.repeat == 0) {
-                                                if(KeyCode == SDLK_ESCAPE) {
+                                        if(Event.key.repeat == 0)
+                                        {
+                                                if(KeyCode == SDLK_ESCAPE)
+                                                {
                                                         Running = false;
                                                 }
                                         }
