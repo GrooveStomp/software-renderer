@@ -215,8 +215,84 @@ Rasterize(int DisplayBuffer[], scanline Scanlines[], materials Materials) {
         }
 }
 
+/******************************************************************************
+ * Entrypoint, Interface and File I/O.
+ ******************************************************************************/
+
+void
+AbortWithMessage(const char *msg)
+{
+        fprintf(stderr, "%s\n", msg);
+        exit(EXIT_FAILURE);
+}
+
+void
+GetTrianglesFromFile(char *Filename, triangle **Triangles, color **Colors, int *Count)
+{
+        size_t AllocSize = FileSize(Filename);
+        struct buffer FileContents;
+
+        /* Allocate space on the stack. */
+        BufferSet(&FileContents, (char *)alloca(AllocSize), 0, AllocSize);
+        if(!CopyFileIntoBuffer(Filename, &FileContents))
+        {
+                AbortWithMessage("Couldn't copy entire file to buffer");
+        }
+
+        /* Determine how many triangles we need to create. */
+        int NumTriangles = 0;
+        struct buffer Reader;
+        CopyBuffer(&FileContents, &Reader);
+        for (int i=0; i<FileContents.Length; i++)
+        {
+                if(*(Reader.Cursor) == '\n') NumTriangles++;
+                Reader.Cursor++;
+        }
+        *Count = NumTriangles;
+
+        *Triangles = (triangle *)malloc(sizeof(triangle) * NumTriangles);
+	*Colors = (color *)malloc(sizeof(color) * NumTriangles);
+
+        for (int i=0; i<NumTriangles; i++)
+        {
+		triangle *Triangle = &(*Triangles)[i];
+
+                sscanf(FileContents.Cursor, "%f,%f %f,%f %f,%f %x",
+		       &(Triangle->Point[0].X),
+		       &(Triangle->Point[0].Y),
+		       &(Triangle->Point[1].X),
+		       &(Triangle->Point[1].Y),
+		       &(Triangle->Point[2].X),
+		       &(Triangle->Point[2].Y),
+		       &(*Colors)[i]);
+
+                OrderForRaster(Triangle);
+                BufferNextLine(&FileContents);
+        }
+}
+
+void
+Usage()
+{
+        printf("Usage: program definitions_file\n");
+        printf("  definitions_file: file in current directory defining triangle coordinates.\n");
+        printf("                    See: triangles.def.example\n");
+        printf("  Specify '-h' or '--help' for this help text.\n");
+        exit(EXIT_SUCCESS);
+}
+
 int
-main(int argc, char** argv) {
+main(int ArgCount, char** Args) {
+        for(int i=0; i<ArgCount; i++)
+        {
+                if(StringEqual(Args[i], "-h", StringLength("-h")) ||
+                   StringEqual(Args[i], "--help", StringLength("--help")))
+                {
+                        Usage();
+                }
+        }
+        if(ArgCount != 2) Usage();
+
         SDL_Window* Window;
         SDL_Renderer* Renderer;
         SDL_Texture* Texture;

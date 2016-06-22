@@ -13,14 +13,6 @@ function build() {
 }
 
 function run() {
-    if [[ "-h" == $1 ]] || [[ "--help" == $1 ]]; then
-        echo "Usage: run [parameters]"
-        echo
-        echo "parameters: Anything specified here will be passed to the running program"
-        echo
-        return
-    fi
-
     if [ -f env/build/run ]; then
         env/build/run "$@"
     fi
