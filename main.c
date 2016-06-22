@@ -1,9 +1,16 @@
 #include "SDL.h"
 #include <stdio.h>
+#include <alloca.h>
 #include <stdlib.h>
-#include <stdbool.h>
+
+typedef int bool;
+#define false 0
+#define true !false
+#define ARRAY_SIZE(Array) (sizeof((Array)) / sizeof((Array)[0]))
 
 #include "types.h"
+#include "file_io.c"
+#include "string.c"
 
 /*
   NOTE(AARON, 2016-06-21):
@@ -41,27 +48,32 @@
 
 global_variable scanline Scanlines[DISPLAY_HEIGHT];
 
-triangle
-OrderForRaster(triangle Unordered) {
+void
+OrderForRaster(triangle *Unordered) {
         // Counter-clockwise.
         // Bottom-left starting.
 
-        triangle Result;
+        triangle Temp;
 
-        if (Unordered.A.Y > Unordered.B.Y && Unordered.A.Y > Unordered.C.Y) {
-                return(Unordered);
+        if (Unordered->A.Y > Unordered->B.Y && Unordered->A.Y > Unordered->C.Y) {
+                ;
         }
-        else if (Unordered.B.Y > Unordered.A.Y && Unordered.B.Y > Unordered.C.Y) {
-                Result.A = Unordered.B;
-                Result.B = Unordered.C;
-                Result.C = Unordered.A;
+        else if (Unordered->B.Y > Unordered->A.Y && Unordered->B.Y > Unordered->C.Y) {
+                Temp.A = Unordered->B;
+                Temp.B = Unordered->C;
+                Temp.C = Unordered->A;
+                Unordered->A = Temp.A;
+                Unordered->B = Temp.B;
+                Unordered->C = Temp.C;
         }
         else {
-                Result.A = Unordered.C;
-                Result.B = Unordered.A;
-                Result.C = Unordered.B;
+                Temp.A = Unordered->C;
+                Temp.B = Unordered->A;
+                Temp.C = Unordered->B;
+                Unordered->A = Temp.A;
+                Unordered->B = Temp.B;
+                Unordered->C = Temp.C;
         }
-        return(Result);
 }
 
 triangle_edges
@@ -251,20 +263,20 @@ GetTrianglesFromFile(char *Filename, triangle **Triangles, color **Colors, int *
         *Count = NumTriangles;
 
         *Triangles = (triangle *)malloc(sizeof(triangle) * NumTriangles);
-	*Colors = (color *)malloc(sizeof(color) * NumTriangles);
+        *Colors = (color *)malloc(sizeof(color) * NumTriangles);
 
         for (int i=0; i<NumTriangles; i++)
         {
-		triangle *Triangle = &(*Triangles)[i];
+                triangle *Triangle = &(*Triangles)[i];
 
                 sscanf(FileContents.Cursor, "%f,%f %f,%f %f,%f %x",
-		       &(Triangle->Point[0].X),
-		       &(Triangle->Point[0].Y),
-		       &(Triangle->Point[1].X),
-		       &(Triangle->Point[1].Y),
-		       &(Triangle->Point[2].X),
-		       &(Triangle->Point[2].Y),
-		       &(*Colors)[i]);
+                       &(Triangle->Point[0].X),
+                       &(Triangle->Point[0].Y),
+                       &(Triangle->Point[1].X),
+                       &(Triangle->Point[1].Y),
+                       &(Triangle->Point[2].X),
+                       &(Triangle->Point[2].Y),
+                       &(*Colors)[i]);
 
                 OrderForRaster(Triangle);
                 BufferNextLine(&FileContents);
@@ -298,56 +310,28 @@ main(int ArgCount, char** Args) {
         SDL_Texture* Texture;
         int DisplayBufferPitch;
         int* DisplayBuffer;
+        int NumTriangles;
 
-        triangle Triangle1;
-        Triangle1.Point[0].X = 100;
-        Triangle1.Point[0].Y = 200;
-        Triangle1.Point[1].X = 750;
-        Triangle1.Point[1].Y = 340;
-        Triangle1.Point[2].X = 800;
-        Triangle1.Point[2].Y = 640;
-        Triangle1 = OrderForRaster(Triangle1);
-
-        triangle Triangle2;
-        Triangle2.Point[0].X = 0;
-        Triangle2.Point[0].Y = 767;
-        Triangle2.Point[1].X = 1020;
-        Triangle2.Point[1].Y = 0;
-        Triangle2.Point[2].X = 1020;
-        Triangle2.Point[2].Y = 767;
-        Triangle2 = OrderForRaster(Triangle2);
-
-        int NumTriangles = 2;
-        triangle Triangles[] = { Triangle2, Triangle1 };
-
+        triangle *Triangles;
+        color *Colors;
+        GetTrianglesFromFile(Args[1], &Triangles, &Colors, &NumTriangles);
         materials Materials;
-        color Colors[] = { COLOR_RED, COLOR_BLUE };
         InitMaterials(&Materials, Triangles, Colors, NumTriangles);
 
         DisplayBuffer = (int*)malloc(DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
 
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) != 0) {
-                fprintf(stderr, "\nUnable to initialize SDL: %s\n", SDL_GetError());
-                return(1);
+                AbortWithMessage(SDL_GetError());
         }
 
         Window = SDL_CreateWindow("My Awesome Window", 100, 100, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0);
-        if (Window == NULL) {
-                fprintf(stderr, "\nCouldn't create window: %s\n", SDL_GetError());
-                return(1);
-        }
+        if (Window == NULL) AbortWithMessage(SDL_GetError());
 
         Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_SOFTWARE);
-        if (Renderer == NULL) {
-                fprintf(stderr, "\nCouldn't create renderer: %s\n", SDL_GetError());
-                return(1);
-        }
+        if (Renderer == NULL) AbortWithMessage(SDL_GetError());
 
         Texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, DISPLAY_WIDTH, DISPLAY_HEIGHT);
-        if (Texture == NULL) {
-                fprintf(stderr, "\nCouldn't create texture: %s\n", SDL_GetError());
-                return(1);
-        }
+        if (Texture == NULL) AbortWithMessage(SDL_GetError());
 
         SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &DisplayBufferPitch);
 
@@ -362,20 +346,20 @@ main(int ArgCount, char** Args) {
 
                 while(SDL_PollEvent(&Event)) {
                         switch(Event.type) {
-                        case SDL_QUIT: {
-                                Running = false;
-                        } break;
+                                case SDL_QUIT: {
+                                        Running = false;
+                                } break;
 
-                        case SDL_KEYDOWN:
-                        case SDL_KEYUP: {
-                                SDL_Keycode KeyCode = Event.key.keysym.sym;
+                                case SDL_KEYDOWN:
+                                case SDL_KEYUP: {
+                                        SDL_Keycode KeyCode = Event.key.keysym.sym;
 
-                                if(Event.key.repeat == 0) {
-                                        if(KeyCode == SDLK_ESCAPE) {
-                                                Running = false;
+                                        if(Event.key.repeat == 0) {
+                                                if(KeyCode == SDLK_ESCAPE) {
+                                                        Running = false;
+                                                }
                                         }
-                                }
-                        } break;
+                                } break;
                         }
                 }
 
