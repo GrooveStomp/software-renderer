@@ -12,40 +12,6 @@ typedef int bool;
 #include "file_io.c"
 #include "string.c"
 
-/*
-  NOTE(AARON, 2016-06-21):
-  At this point (2016-06-21) this program only handles scanline rasterization.
-  The assumption is that we have a collection of adjacent, non-overlapping
-  triangles in screen space.  These triangles are the end result of the 3D
-  rendering engine and no longer need Z-depth.
-*/
-
-/*
-  NOTE(AARON):
-  Given a polygon in viewspace ((0,0), (640,480)) we want to rasterize the polygon
-  onto our viewspace buffer.
-  At this point we can skip our modelview and projection matrices.
-  We need a polygon rasterization algorithm, whether that directly involves line
-  drawing or not.
-  See here: http://www.sccs.swarthmore.edu/users/05/zap/labs/E26/lab7/index.html
-  (We will also probably need a z-buffer once we start dealing with more than one object.)
-
-  Scanline Algorithm
-  ------------------
-
-  - Convert each polygon into a list of edges. (Line segments.)
-  - Sort all polygons front to back (ignore transparency support for now).
-  - For each scanline keep track of which polygon has been intersected via the scanline stack.
-  - This requires a line-line intersection algorithm in view space.
-  - For now just use a solid, unique color for each individual polygon.
-
-  We'll have a list of polygons and divide the video buffer into lines.
-  For each line that we'll rasterize, we want to subdivide it into line segments corresponding with
-  polygons.  So we'll need a stack representing the current polygon we're on.
-  For every polygon we encounter in the stack while rasterizing, we need to do a per-pixel material
-  calculation for that polygon. Ie., lighting + shading + textures + bump/parallalax.
-*/
-
 global_variable scanline Scanlines[DISPLAY_HEIGHT];
 
 void
