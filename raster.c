@@ -1,12 +1,19 @@
-/* NOTE(AARON): Assumes util.c is included beforehand. */
+#include "raster.h"
+#include <stdlib.h> /* NULL */
 
-struct point2d
-{
-        real32 X;
-        real32 Y;
-};
-typedef struct point2d point2d;
-typedef point2d vector2d;
+typedef int bool;
+#define false 0
+#define true !false
+
+#define internal static
+#define local_persist static
+#define global_variable static
+
+#ifdef DEBUG
+#define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;}
+#else
+#define Assert(Expression)
+#endif
 
 struct ray2d
 {
@@ -19,10 +26,10 @@ struct ray2d
                 };
                 struct
                 {
-                        real32 X;
-                        real32 Y;
-                        real32 Dx;
-                        real32 Dy;
+                        float X;
+                        float Y;
+                        float Dx;
+                        float Dy;
                 };
         };
 };
@@ -39,30 +46,15 @@ struct line_segment
                 };
                 struct
                 {
-                        real32 StartX;
-                        real32 StartY;
-                        real32 EndX;
-                        real32 EndY;
+                        float StartX;
+                        float StartY;
+                        float EndX;
+                        float EndY;
                 };
         };
 };
 typedef struct line_segment line_segment;
 typedef line_segment edge;
-
-struct triangle
-{
-        union
-        {
-                point2d Point[3];
-                struct
-                {
-                        point2d A;
-                        point2d B;
-                        point2d C;
-                };
-        };
-};
-typedef struct triangle triangle;
 
 struct triangle_edges
 {
@@ -81,18 +73,10 @@ typedef struct triangle_edges triangle_edges;
 
 struct triangle_intersection
 {
-        uint32 X;
+        unsigned int X;
         triangle *Triangle;
 };
 typedef struct triangle_intersection triangle_intersection;
-
-struct scanline
-{
-        triangle_intersection *Intersections;
-        int NumIntersections; /* Actual number we have stored. */
-        int Capacity; /* Total number we can store. */
-};
-typedef struct scanline scanline;
 
 int
 SizeRequiredForScanlines(int NumScanlines, int Capacity)
@@ -181,7 +165,7 @@ TriangleStackIsEmpty(triangle_stack *Stack)
         return(Stack->Head == 0);
 }
 
-uint32
+unsigned int
 TriangleStackSize(triangle_stack *Stack)
 {
         return(Stack->Head);
@@ -267,7 +251,7 @@ Add(point2d First, point2d Second)
 }
 
 point2d
-Apply(point2d Point, real32 T)
+Apply(point2d Point, float T)
 {
         point2d Result;
         Result.X = Point.X * T;
@@ -276,7 +260,7 @@ Apply(point2d Point, real32 T)
 }
 
 point2d
-Evaluate(ray2d Ray, real32 T)
+Evaluate(ray2d Ray, float T)
 {
         vector2d Applied = Apply(Ray.Dir, T);
         point2d Result = Add(Ray.Pos, Applied);
@@ -372,7 +356,7 @@ PositiveXVectorAtHeight(int Height)
 {
         ray2d Result;
         Result.X = 0;
-        Result.Y = (real32)Height;
+        Result.Y = (float)Height;
         Result.Dx = 1;
         Result.Dy = 0;
         return(Result);
@@ -382,20 +366,20 @@ PositiveXVectorAtHeight(int Height)
 bool
 HasIntersection(ray2d Ray, line_segment Line)
 {
-        int32 A = Line.EndY - Ray.Y;
-        int32 B = Line.StartY - Ray.Y;
+        int A = Line.EndY - Ray.Y;
+        int B = Line.StartY - Ray.Y;
         return(((A ^ B) < 0) || Line.EndY == Ray.Y || Line.StartY == Ray.Y);
 }
 
-real32
+float
 Intersect(ray2d Ray, line_segment Line)
 {
         vector2d Slope = Subtract(Line.End, Line.Start);
         bool IsNegative = (Slope.X < 0 || Slope.Y < 0);
 
-        real32 DeltaY = abs(Line.StartY - Ray.Y);
+        float DeltaY = abs(Line.StartY - Ray.Y);
 
-        real32 Term2 = (DeltaY * (Slope.X / Slope.Y));
+        float Term2 = (DeltaY * (Slope.X / Slope.Y));
 
         if(IsNegative)
         {
@@ -456,7 +440,7 @@ GenerateScanlines(triangle *Triangles, int NumTriangles, scanline *Scanlines, in
                                                 continue;
                                         }
 
-                                        real32 X = Intersect(Ray, Edge);
+                                        float X = Intersect(Ray, Edge);
                                         triangle_intersection *Intersection = &Scanline->Intersections[Scanline->NumIntersections];
                                         Intersection->Triangle = Triangle;
                                         Intersection->X = X;
@@ -519,7 +503,7 @@ Rasterize(int *Pixels, int Width, int Height, scanline *Scanlines, triangle Tria
 
                         // TODO(AARON): This may be a NULL pointer.
                         triangle *Triangle = TriangleStackTop(CurrentTriangle);
-                        int32 Color = 0x00000000;
+                        uint32_t Color = 0x00000000;
                         if(Triangle)
                         {
                                 Color = ColorForTriangle(Triangles, Colors, NumTriangles, Triangle);

@@ -9,7 +9,7 @@ function build() {
         mkdir -p env/build
     fi
 
-    gcc -std=c11 -pedantic-errors -fextended-identifiers -g -x c -o env/build/run main.c `sdl2-config --cflags --libs`
+    gcc -std=c11 -pedantic-errors -fextended-identifiers -g -x c -o env/build/run main.c raster.c `sdl2-config --cflags --libs`
 }
 
 function run() {
