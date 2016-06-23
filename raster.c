@@ -1,5 +1,6 @@
 #include "raster.h"
 #include <stdlib.h> /* NULL */
+#include <alloca.h>
 
 typedef int bool;
 #define false 0
@@ -81,7 +82,7 @@ struct gs_raster_triangle_intersection
 typedef struct gs_raster_triangle_intersection gs_raster_triangle_intersection;
 
 int
-SizeRequiredForScanlines(int NumScanlines, int Capacity)
+GsRasterSizeRequiredForScanlines(int NumScanlines, int Capacity)
 {
         int Result = (sizeof(gs_raster_scanline) + Capacity) * NumScanlines;
         return(Result);
@@ -94,7 +95,7 @@ GsRasterInitScanlines(gs_raster_scanline **Scanlines, int NumScanlines, int Capa
 {
         if(Memory == NULL)
         {
-                int Size = SizeRequiredForScanlines(NumScanlines, Capacity);
+                int Size = GsRasterSizeRequiredForScanlines(NumScanlines, Capacity);
                 Memory = malloc(Size);
         }
         *Scanlines = (gs_raster_scanline *)Memory;
