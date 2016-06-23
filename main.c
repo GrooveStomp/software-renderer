@@ -1,9 +1,14 @@
 #include "SDL.h"
 #include <alloca.h>
 
+#include "util.c"
 #include "raster.c"
 
-global_variable scanline Scanlines[DISPLAY_HEIGHT];
+enum MAIN_DISPLAY_SIZE
+{
+        DISPLAY_WIDTH = 1024,
+        DISPLAY_HEIGHT = 768,
+};
 
 void
 AbortWithMessage(const char *msg)
@@ -13,7 +18,7 @@ AbortWithMessage(const char *msg)
 }
 
 void
-GetTrianglesFromFile(char *Filename, triangle **Triangles, color **Colors, int *Count)
+CreateRasterDatastructuresFromFile(char *Filename, triangle **Triangles, color **Colors, int *Count)
 {
         size_t AllocSize = FileSize(Filename);
         buffer FileContents;
@@ -68,7 +73,7 @@ Usage()
 }
 
 int
-main(int ArgCount, char** Args)
+main(int ArgCount, char **Args)
 {
         for(int i=0; i<ArgCount; i++)
         {
@@ -80,18 +85,16 @@ main(int ArgCount, char** Args)
         }
         if(ArgCount != 2) Usage();
 
-        SDL_Window* Window;
-        SDL_Renderer* Renderer;
-        SDL_Texture* Texture;
+        SDL_Window *Window;
+        SDL_Renderer *Renderer;
+        SDL_Texture *Texture;
         int DisplayBufferPitch;
-        int* DisplayBuffer;
-        int NumTriangles;
+        int *DisplayBuffer;
 
+	scanline *Scanlines;
         triangle *Triangles;
         color *Colors;
-        GetTrianglesFromFile(Args[1], &Triangles, &Colors, &NumTriangles);
-        materials Materials;
-        InitMaterials(&Materials, Triangles, Colors, NumTriangles);
+        int NumTriangles;
 
         DisplayBuffer = (int*)malloc(DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
 
@@ -109,11 +112,14 @@ main(int ArgCount, char** Args)
         Texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, DISPLAY_WIDTH, DISPLAY_HEIGHT);
         if(Texture == NULL) AbortWithMessage(SDL_GetError());
 
+        CreateRasterDatastructuresFromFile(Args[1], &Triangles, &Colors, &NumTriangles);
+        InitScanlines(&Scanlines, DISPLAY_HEIGHT, DISPLAY_WIDTH, NULL);
+        GenerateScanlines(Triangles, NumTriangles, Scanlines, DISPLAY_HEIGHT);
+
         SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &DisplayBufferPitch);
-
-        GenerateScanlines(Triangles, NumTriangles, Scanlines);
-        Rasterize(DisplayBuffer, Scanlines, Materials);
-
+	{
+		Rasterize(DisplayBuffer, DISPLAY_WIDTH, DISPLAY_HEIGHT, Scanlines, Triangles, Colors, NumTriangles);
+	}
         SDL_UnlockTexture(Texture);
 
         bool32 Running = true;

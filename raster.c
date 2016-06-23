@@ -1,10 +1,4 @@
-#include "util.c"
-
-enum DISPLAY_SIZE
-{
-        DISPLAY_WIDTH = 1024,
-        DISPLAY_HEIGHT = 768
-};
+/* NOTE(AARON): Assumes util.c is included beforehand. */
 
 struct point2d
 {
@@ -85,90 +79,116 @@ struct triangle_edges
 };
 typedef struct triangle_edges triangle_edges;
 
-struct materials
-{
-        triangle* Triangles[DISPLAY_WIDTH];
-        color Colors[DISPLAY_WIDTH];
-        int Count;
-};
-typedef struct materials materials;
-
-struct scanline_intersection
+struct triangle_intersection
 {
         uint32 X;
-        triangle* Triangle;
+        triangle *Triangle;
 };
-typedef struct scanline_intersection scanline_intersection;
+typedef struct triangle_intersection triangle_intersection;
 
-// TODO(AARON): Export this structure as public.
 struct scanline
 {
-        // At most we can have pixel_width intersections, so we can have a linear array initialized to that size.
-        scanline_intersection Intersections[DISPLAY_WIDTH];
-        uint32 NumIntersections;
+        triangle_intersection *Intersections;
+        int NumIntersections; /* Actual number we have stored. */
+        int Capacity; /* Total number we can store. */
 };
 typedef struct scanline scanline;
 
-struct stack
+int
+SizeRequiredForScanlines(int NumScanlines, int Capacity)
 {
-        triangle* Stack[DISPLAY_WIDTH];
-        uint32 Head;
+        int Result = (sizeof(scanline) + Capacity) * NumScanlines;
+        return(Result);
+}
+
+/* Memory can be NULL.  If NULL, allocate on the heap. If not NULL, then use
+   Memory. */
+void
+InitScanlines(scanline **Scanlines, int NumScanlines, int Capacity, void *Memory)
+{
+        if(Memory == NULL)
+        {
+                int Size = SizeRequiredForScanlines(NumScanlines, Capacity);
+                Memory = malloc(Size);
+        }
+        *Scanlines = (scanline *)Memory;
+
+        for(int Index = 0; Index < NumScanlines; Index++)
+        {
+                scanline *CurrentScanline = &(*Scanlines)[Index];
+                CurrentScanline->Capacity = Capacity;
+                CurrentScanline->NumIntersections = 0;
+
+                int SizeOfScanlines = sizeof(scanline) * NumScanlines;
+                char *Intersections = (char *)Memory + SizeOfScanlines;
+                int Offset = Capacity * Index;
+
+                CurrentScanline->Intersections = (triangle_intersection *)(Intersections + Offset);
+        }
+}
+
+struct triangle_stack
+{
+        triangle **Stack;
+        int Head;
 };
-typedef struct stack stack;
+typedef struct triangle_stack triangle_stack;
 
 //------------------------------------------------------------------------------
 // Material Operations
 //------------------------------------------------------------------------------
 
 color
-FromMaterial(materials *Materials, triangle *Triangle)
+ColorForTriangle(triangle *Triangles, color *Colors, int Count, triangle *Triangle)
 {
-        for(int i=0; i < Materials->Count; ++i)
+        for(int Index = 0; Index < Count; Index++)
         {
-                if(Materials->Triangles[i] == Triangle)
+                if(&Triangles[Index] == Triangle)
                 {
-                        return(Materials->Colors[i]);
+                        return(Colors[Index]);
                 }
         }
 
-        return(0xDEADBEEF);
+        /* TODO(AARON): Default to fuchsia or some obviously "wrong" color? */
+        return(0x00000000); /* Default to the color black. */
 }
 
+//------------------------------------------------------------------------------
+// Triangle Stack Operations
+//------------------------------------------------------------------------------
+
+/* Memory can be NULL.  If NULL, allocate on the heap. If not NULL, then use
+   Memory. */
 void
-InitMaterials(materials *Materials, triangle Triangles[], color Colors[], int Count)
+TriangleStackInit(triangle_stack **Stack, int Capacity, void *Memory)
 {
-        Materials->Count = Count;
-        for(int i=0; i< Count; ++i)
+        if(Memory == NULL)
         {
-                Materials->Triangles[i] = &Triangles[i];
-                Materials->Colors[i] = Colors[i];
+                int PointerArraySize = sizeof(triangle *) * Capacity;
+                Memory = malloc(sizeof(triangle_stack) + PointerArraySize);
         }
-}
+        *Stack = (triangle_stack *)Memory;
 
-//------------------------------------------------------------------------------
-// Stack Operations
-//------------------------------------------------------------------------------
-
-void
-Init(stack *Stack)
-{
-        Stack->Head = 0;
+        triangle_stack *StackPointer = *Stack;
+        void *MemoryOffset = (char *)Memory + sizeof(triangle_stack);
+        StackPointer->Stack = (triangle **)MemoryOffset;
+        StackPointer->Head = 0;
 }
 
 bool
-IsEmpty(stack *Stack)
+TriangleStackIsEmpty(triangle_stack *Stack)
 {
         return(Stack->Head == 0);
 }
 
 uint32
-Size(stack *Stack)
+TriangleStackSize(triangle_stack *Stack)
 {
         return(Stack->Head);
 }
 
 bool
-Push(stack *Stack, triangle *Object)
+TriangleStackPush(triangle_stack *Stack, triangle *Object)
 {
         ++Stack->Head;
         Stack->Stack[Stack->Head] = Object;
@@ -176,7 +196,7 @@ Push(stack *Stack, triangle *Object)
 }
 
 triangle *
-Pop(stack *Stack)
+TriangleStackPop(triangle_stack *Stack)
 {
         if(Stack->Head <= 0) return(NULL);
 
@@ -187,13 +207,13 @@ Pop(stack *Stack)
 }
 
 triangle *
-Top(stack *Stack)
+TriangleStackTop(triangle_stack *Stack)
 {
         return(Stack->Stack[Stack->Head]);
 }
 
 bool
-Find(stack *Stack, triangle *Object)
+TriangleStackFind(triangle_stack *Stack, triangle *Object)
 {
         for(int i=0; i<=Stack->Head; ++i)
         {
@@ -207,7 +227,7 @@ Find(stack *Stack, triangle *Object)
 }
 
 bool
-Remove(stack *Stack, triangle *Object)
+TriangleStackRemove(triangle_stack *Stack, triangle *Object)
 {
         int index = -1;
         for(int i=0; i <= Stack->Head; ++i)
@@ -388,10 +408,10 @@ Intersect(ray2d Ray, line_segment Line)
 }
 
 int
-ScanlineIntersectionSort(const void *Left, const void *Right)
+TriangleIntersectionSort(const void *Left, const void *Right)
 {
-        scanline_intersection First  = *((scanline_intersection *)Left);
-        scanline_intersection Second = *((scanline_intersection *)Right);
+        triangle_intersection First  = *((triangle_intersection *)Left);
+        triangle_intersection Second = *((triangle_intersection *)Right);
 
         if(First.X > Second.X) return(1);
         if(First.X < Second.X) return(-1);
@@ -399,26 +419,28 @@ ScanlineIntersectionSort(const void *Left, const void *Right)
         return(0);
 }
 
+/*
+ * Scanlines must be initialized to contain NumScanlines scanlines.
+ * Triangles must be an initialized array of triangles.
+ */
 void
-GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[])
+GenerateScanlines(triangle *Triangles, int NumTriangles, scanline *Scanlines, int NumScanlines)
 {
-        for(int h = 0; h < DISPLAY_HEIGHT; h++)
+        for(int Row = 0; Row < NumScanlines; Row++)
         {
-                scanline *Scanline = &Scanlines[h];
-                Scanline->NumIntersections = 0;
+                scanline *Scanline = Scanlines + Row;
+                ray2d Ray = PositiveXVectorAtHeight(Row);
 
-                ray2d Ray = PositiveXVectorAtHeight(h);
-
-                for(int t = 0; t < NumTriangles; t++)
+                for(int Index = 0; Index < NumTriangles; Index++)
                 {
-                        triangle *Triangle = &Triangles[t];
+                        triangle *Triangle = &Triangles[Index];
                         triangle_edges Edges = FromTriangle(*Triangle);
 
                         int NumTriangleIntersections = 0;
 
-                        for(int i=0; i < 3; ++i)
+                        for(int Index=0; Index < 3; ++Index)
                         {
-                                line_segment Edge = FromPoints(Edges.Edges[i].Start, Edges.Edges[i].End);
+                                line_segment Edge = FromPoints(Edges.Edges[Index].Start, Edges.Edges[Index].End);
 
                                 if(HasIntersection(Ray, Edge))
                                 {
@@ -435,7 +457,7 @@ GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[])
                                         }
 
                                         real32 X = Intersect(Ray, Edge);
-                                        scanline_intersection *Intersection = &(Scanline->Intersections[Scanline->NumIntersections]);
+                                        triangle_intersection *Intersection = &Scanline->Intersections[Scanline->NumIntersections];
                                         Intersection->Triangle = Triangle;
                                         Intersection->X = X;
                                         Scanline->NumIntersections++;
@@ -445,59 +467,65 @@ GenerateScanlines(triangle Triangles[], int NumTriangles, scanline Scanlines[])
 
                 qsort(Scanline->Intersections,
                       Scanline->NumIntersections,
-                      sizeof(scanline_intersection),
-                      ScanlineIntersectionSort);
+                      sizeof(triangle_intersection),
+                      TriangleIntersectionSort);
         }
 }
 
 void
-PutPixel(int *DisplayBuffer, int X, int Y, int Pixel)
+PutPixel(int *Pixels, int Width, int Height, int X, int Y, int NewPixel)
 {
-        DisplayBuffer[(Y * DISPLAY_WIDTH) + X] = Pixel;
+        int Index = Y * Width + X;
+        Assert(Index < (Width * Height));
+        Pixels[Index] = NewPixel;
 }
 
+/*
+ * Pixels is a Width * Height grid of pixels intended for display somewhere.
+ * scanline_intersectio
+ */
 void
-Rasterize(int DisplayBuffer[], scanline Scanlines[], materials Materials)
+Rasterize(int *Pixels, int Width, int Height, scanline *Scanlines, triangle Triangles[], color Colors[], int NumTriangles)
 {
-        stack CurrentTriangle;
-        Init(&CurrentTriangle);
+        triangle_stack *CurrentTriangle;
+        TriangleStackInit(&CurrentTriangle, Width, NULL);
 
-        for(int h=0; h < DISPLAY_HEIGHT; ++h)
+        for(int Row=0; Row<Height; Row++)
         {
-                scanline *Scanline = &Scanlines[h];
+                scanline *Scanline = &Scanlines[Row];
 
-                for(int x=0; x<DISPLAY_WIDTH; ++x)
+                for(int Col=0; Col<Width; Col++)
                 {
 
                         for(int s=0; s<Scanline->NumIntersections; ++s)
                         {
-                                scanline_intersection *Intersection = &(Scanline->Intersections[s]);
+                                triangle_intersection *Intersection = &(Scanline->Intersections[s]);
 
-                                if(Intersection->X == x)
+                                if(Intersection->X == Col)
                                 {
                                         triangle *Triangle;
 
-                                        if(Find(&CurrentTriangle, Intersection->Triangle))
+                                        if(TriangleStackFind(CurrentTriangle, Intersection->Triangle))
                                         {
-                                                Remove(&CurrentTriangle, Intersection->Triangle);
+                                                TriangleStackRemove(CurrentTriangle, Intersection->Triangle);
                                         }
                                         else
                                         {
-                                                Push(&CurrentTriangle, Intersection->Triangle);
+                                                TriangleStackPush(CurrentTriangle, Intersection->Triangle);
                                         }
 
                                 }
                         }
 
-                        // NOTE(AARON): This may be a NULL pointer.
-                        triangle *Triangle = Top(&CurrentTriangle);
+                        // TODO(AARON): This may be a NULL pointer.
+                        triangle *Triangle = TriangleStackTop(CurrentTriangle);
                         int32 Color = 0x00000000;
                         if(Triangle)
                         {
-                                Color = FromMaterial(&Materials, Triangle);
+                                Color = ColorForTriangle(Triangles, Colors, NumTriangles, Triangle);
                         }
 
-                        PutPixel(DisplayBuffer, x, h, Color);
+                        PutPixel(Pixels, Width, Height, Col, Row, Color);
                 }
         }
 }

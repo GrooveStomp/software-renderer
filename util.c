@@ -12,6 +12,14 @@ typedef int bool;
 
 #define Pi32 3.14159265359f
 
+#define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+
+#ifdef DEBUG
+#define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;}
+#else
+#define Assert(Expression)
+#endif
+
 typedef int8_t int8;
 typedef int16_t int16;
 typedef int32_t int32;
