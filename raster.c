@@ -9,11 +9,13 @@ typedef int bool;
 #define local_persist static
 #define global_variable static
 
-#ifdef DEBUG
+#ifdef GS_GRAPHICS_DEBUG
 #define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;}
 #else
 #define Assert(Expression)
 #endif
+
+typedef gs_raster_point2d vector2d;
 
 struct ray2d
 {
@@ -21,8 +23,8 @@ struct ray2d
         {
                 struct
                 {
-                        point2d Pos;
-                        point2d Dir;
+                        gs_raster_point2d Pos;
+                        gs_raster_point2d Dir;
                 };
                 struct
                 {
@@ -41,8 +43,8 @@ struct line_segment
         {
                 struct
                 {
-                        point2d Start;
-                        point2d End;
+                        gs_raster_point2d Start;
+                        gs_raster_point2d End;
                 };
                 struct
                 {
@@ -56,7 +58,7 @@ struct line_segment
 typedef struct line_segment line_segment;
 typedef line_segment edge;
 
-struct triangle_edges
+struct gs_raster_triangle_edges
 {
         union
         {
@@ -69,61 +71,61 @@ struct triangle_edges
                 };
         };
 };
-typedef struct triangle_edges triangle_edges;
+typedef struct gs_raster_triangle_edges gs_raster_triangle_edges;
 
-struct triangle_intersection
+struct gs_raster_triangle_intersection
 {
         unsigned int X;
-        triangle *Triangle;
+        gs_raster_triangle *Triangle;
 };
-typedef struct triangle_intersection triangle_intersection;
+typedef struct gs_raster_triangle_intersection gs_raster_triangle_intersection;
 
 int
 SizeRequiredForScanlines(int NumScanlines, int Capacity)
 {
-        int Result = (sizeof(scanline) + Capacity) * NumScanlines;
+        int Result = (sizeof(gs_raster_scanline) + Capacity) * NumScanlines;
         return(Result);
 }
 
 /* Memory can be NULL.  If NULL, allocate on the heap. If not NULL, then use
    Memory. */
 void
-InitScanlines(scanline **Scanlines, int NumScanlines, int Capacity, void *Memory)
+GsRasterInitScanlines(gs_raster_scanline **Scanlines, int NumScanlines, int Capacity, void *Memory)
 {
         if(Memory == NULL)
         {
                 int Size = SizeRequiredForScanlines(NumScanlines, Capacity);
                 Memory = malloc(Size);
         }
-        *Scanlines = (scanline *)Memory;
+        *Scanlines = (gs_raster_scanline *)Memory;
 
         for(int Index = 0; Index < NumScanlines; Index++)
         {
-                scanline *CurrentScanline = &(*Scanlines)[Index];
+                gs_raster_scanline *CurrentScanline = &(*Scanlines)[Index];
                 CurrentScanline->Capacity = Capacity;
                 CurrentScanline->NumIntersections = 0;
 
-                int SizeOfScanlines = sizeof(scanline) * NumScanlines;
+                int SizeOfScanlines = sizeof(gs_raster_scanline) * NumScanlines;
                 char *Intersections = (char *)Memory + SizeOfScanlines;
                 int Offset = Capacity * Index;
 
-                CurrentScanline->Intersections = (triangle_intersection *)(Intersections + Offset);
+                CurrentScanline->Intersections = (gs_raster_triangle_intersection *)(Intersections + Offset);
         }
 }
 
-struct triangle_stack
+struct gs_raster_triangle_stack
 {
-        triangle **Stack;
+        gs_raster_triangle **Stack;
         int Head;
 };
-typedef struct triangle_stack triangle_stack;
+typedef struct gs_raster_triangle_stack gs_raster_triangle_stack;
 
 //------------------------------------------------------------------------------
 // Material Operations
 //------------------------------------------------------------------------------
 
-color
-ColorForTriangle(triangle *Triangles, color *Colors, int Count, triangle *Triangle)
+gs_raster_color
+ColorForTriangle(gs_raster_triangle *Triangles, gs_raster_color *Colors, int Count, gs_raster_triangle *Triangle)
 {
         for(int Index = 0; Index < Count; Index++)
         {
@@ -144,60 +146,60 @@ ColorForTriangle(triangle *Triangles, color *Colors, int Count, triangle *Triang
 /* Memory can be NULL.  If NULL, allocate on the heap. If not NULL, then use
    Memory. */
 void
-TriangleStackInit(triangle_stack **Stack, int Capacity, void *Memory)
+TriangleStackInit(gs_raster_triangle_stack **Stack, int Capacity, void *Memory)
 {
         if(Memory == NULL)
         {
-                int PointerArraySize = sizeof(triangle *) * Capacity;
-                Memory = malloc(sizeof(triangle_stack) + PointerArraySize);
+                int PointerArraySize = sizeof(gs_raster_triangle *) * Capacity;
+                Memory = malloc(sizeof(gs_raster_triangle_stack) + PointerArraySize);
         }
-        *Stack = (triangle_stack *)Memory;
+        *Stack = (gs_raster_triangle_stack *)Memory;
 
-        triangle_stack *StackPointer = *Stack;
-        void *MemoryOffset = (char *)Memory + sizeof(triangle_stack);
-        StackPointer->Stack = (triangle **)MemoryOffset;
+        gs_raster_triangle_stack *StackPointer = *Stack;
+        void *MemoryOffset = (char *)Memory + sizeof(gs_raster_triangle_stack);
+        StackPointer->Stack = (gs_raster_triangle **)MemoryOffset;
         StackPointer->Head = 0;
 }
 
 bool
-TriangleStackIsEmpty(triangle_stack *Stack)
+TriangleStackIsEmpty(gs_raster_triangle_stack *Stack)
 {
         return(Stack->Head == 0);
 }
 
 unsigned int
-TriangleStackSize(triangle_stack *Stack)
+TriangleStackSize(gs_raster_triangle_stack *Stack)
 {
         return(Stack->Head);
 }
 
 bool
-TriangleStackPush(triangle_stack *Stack, triangle *Object)
+TriangleStackPush(gs_raster_triangle_stack *Stack, gs_raster_triangle *Object)
 {
         ++Stack->Head;
         Stack->Stack[Stack->Head] = Object;
         return(true);
 }
 
-triangle *
-TriangleStackPop(triangle_stack *Stack)
+gs_raster_triangle *
+TriangleStackPop(gs_raster_triangle_stack *Stack)
 {
         if(Stack->Head <= 0) return(NULL);
 
-        triangle *Result = Stack->Stack[Stack->Head];
+        gs_raster_triangle *Result = Stack->Stack[Stack->Head];
         --Stack->Head;
 
         return(Result);
 }
 
-triangle *
-TriangleStackTop(triangle_stack *Stack)
+gs_raster_triangle *
+TriangleStackTop(gs_raster_triangle_stack *Stack)
 {
         return(Stack->Stack[Stack->Head]);
 }
 
 bool
-TriangleStackFind(triangle_stack *Stack, triangle *Object)
+TriangleStackFind(gs_raster_triangle_stack *Stack, gs_raster_triangle *Object)
 {
         for(int i=0; i<=Stack->Head; ++i)
         {
@@ -211,7 +213,7 @@ TriangleStackFind(triangle_stack *Stack, triangle *Object)
 }
 
 bool
-TriangleStackRemove(triangle_stack *Stack, triangle *Object)
+TriangleStackRemove(gs_raster_triangle_stack *Stack, gs_raster_triangle *Object)
 {
         int index = -1;
         for(int i=0; i <= Stack->Head; ++i)
@@ -241,43 +243,43 @@ TriangleStackRemove(triangle_stack *Stack, triangle *Object)
 // Ray, Point and other similar operations
 //------------------------------------------------------------------------------
 
-point2d
-Add(point2d First, point2d Second)
+gs_raster_point2d
+Add(gs_raster_point2d First, gs_raster_point2d Second)
 {
-        point2d Result;
+        gs_raster_point2d Result;
         Result.X = First.X + Second.X;
         Result.Y = First.Y + Second.Y;
         return(Result);
 }
 
-point2d
-Apply(point2d Point, float T)
+gs_raster_point2d
+Apply(gs_raster_point2d Point, float T)
 {
-        point2d Result;
+        gs_raster_point2d Result;
         Result.X = Point.X * T;
         Result.Y = Point.Y * T;
         return(Result);
 }
 
-point2d
+gs_raster_point2d
 Evaluate(ray2d Ray, float T)
 {
         vector2d Applied = Apply(Ray.Dir, T);
-        point2d Result = Add(Ray.Pos, Applied);
+        gs_raster_point2d Result = Add(Ray.Pos, Applied);
         return(Result);
 }
 
-point2d
-Subtract(point2d Minuend, point2d Subtrahend)
+gs_raster_point2d
+Subtract(gs_raster_point2d Minuend, gs_raster_point2d Subtrahend)
 {
-        point2d Result;
+        gs_raster_point2d Result;
         Result.X = Minuend.X - Subtrahend.X;
         Result.Y = Minuend.Y - Subtrahend.Y;
         return(Result);
 }
 
 line_segment
-FromPoints(point2d Start, point2d End)
+FromPoints(gs_raster_point2d Start, gs_raster_point2d End)
 {
         line_segment Result;
         Result.Start = Start;
@@ -303,12 +305,12 @@ FromEdge(edge Edge)
 
 
 void
-OrderForRaster(triangle *Unordered)
+GsRasterReorderTriangle(gs_raster_triangle *Unordered)
 {
         // Counter-clockwise.
         // Bottom-left starting.
 
-        triangle Temp;
+        gs_raster_triangle Temp;
 
         if(Unordered->A.Y > Unordered->B.Y && Unordered->A.Y > Unordered->C.Y)
         {
@@ -334,10 +336,10 @@ OrderForRaster(triangle *Unordered)
         }
 }
 
-triangle_edges
-FromTriangle(triangle Triangle)
+gs_raster_triangle_edges
+FromTriangle(gs_raster_triangle Triangle)
 {
-        triangle_edges Result;
+        gs_raster_triangle_edges Result;
 
         Result.Edges[0].Start = Triangle.Point[0];
         Result.Edges[0].End = Triangle.Point[1];
@@ -394,8 +396,8 @@ Intersect(ray2d Ray, line_segment Line)
 int
 TriangleIntersectionSort(const void *Left, const void *Right)
 {
-        triangle_intersection First  = *((triangle_intersection *)Left);
-        triangle_intersection Second = *((triangle_intersection *)Right);
+        gs_raster_triangle_intersection First  = *((gs_raster_triangle_intersection *)Left);
+        gs_raster_triangle_intersection Second = *((gs_raster_triangle_intersection *)Right);
 
         if(First.X > Second.X) return(1);
         if(First.X < Second.X) return(-1);
@@ -405,20 +407,20 @@ TriangleIntersectionSort(const void *Left, const void *Right)
 
 /*
  * Scanlines must be initialized to contain NumScanlines scanlines.
- * Triangles must be an initialized array of triangles.
+ * Triangles must be an initialized array of gs_raster_triangles.
  */
 void
-GenerateScanlines(triangle *Triangles, int NumTriangles, scanline *Scanlines, int NumScanlines)
+GsRasterGenerateScanlines(gs_raster_triangle *Triangles, int NumTriangles, gs_raster_scanline *Scanlines, int NumScanlines)
 {
         for(int Row = 0; Row < NumScanlines; Row++)
         {
-                scanline *Scanline = Scanlines + Row;
+                gs_raster_scanline *Scanline = Scanlines + Row;
                 ray2d Ray = PositiveXVectorAtHeight(Row);
 
                 for(int Index = 0; Index < NumTriangles; Index++)
                 {
-                        triangle *Triangle = &Triangles[Index];
-                        triangle_edges Edges = FromTriangle(*Triangle);
+                        gs_raster_triangle *Triangle = &Triangles[Index];
+                        gs_raster_triangle_edges Edges = FromTriangle(*Triangle);
 
                         int NumTriangleIntersections = 0;
 
@@ -429,7 +431,7 @@ GenerateScanlines(triangle *Triangles, int NumTriangles, scanline *Scanlines, in
                                 if(HasIntersection(Ray, Edge))
                                 {
                                         // NOTE(AARON):
-                                        // For a given triangle we expect to only have two intersections, max.
+                                        // For a given gs_raster_triangle we expect to only have two intersections, max.
                                         // More than this causes rendering artifacts because any two edges
                                         // probably share a vertex. When a vertex is shared, then then the
                                         // intersection points get recalculated, which will cause problems
@@ -441,7 +443,7 @@ GenerateScanlines(triangle *Triangles, int NumTriangles, scanline *Scanlines, in
                                         }
 
                                         float X = Intersect(Ray, Edge);
-                                        triangle_intersection *Intersection = &Scanline->Intersections[Scanline->NumIntersections];
+                                        gs_raster_triangle_intersection *Intersection = &Scanline->Intersections[Scanline->NumIntersections];
                                         Intersection->Triangle = Triangle;
                                         Intersection->X = X;
                                         Scanline->NumIntersections++;
@@ -451,7 +453,7 @@ GenerateScanlines(triangle *Triangles, int NumTriangles, scanline *Scanlines, in
 
                 qsort(Scanline->Intersections,
                       Scanline->NumIntersections,
-                      sizeof(triangle_intersection),
+                      sizeof(gs_raster_triangle_intersection),
                       TriangleIntersectionSort);
         }
 }
@@ -469,25 +471,25 @@ PutPixel(int *Pixels, int Width, int Height, int X, int Y, int NewPixel)
  * scanline_intersectio
  */
 void
-Rasterize(int *Pixels, int Width, int Height, scanline *Scanlines, triangle Triangles[], color Colors[], int NumTriangles)
+GsRasterRasterize(int *Pixels, int Width, int Height, gs_raster_scanline *Scanlines, gs_raster_triangle Triangles[], gs_raster_color Colors[], int NumTriangles)
 {
-        triangle_stack *CurrentTriangle;
+        gs_raster_triangle_stack *CurrentTriangle;
         TriangleStackInit(&CurrentTriangle, Width, NULL);
 
         for(int Row=0; Row<Height; Row++)
         {
-                scanline *Scanline = &Scanlines[Row];
+                gs_raster_scanline *Scanline = &Scanlines[Row];
 
                 for(int Col=0; Col<Width; Col++)
                 {
 
                         for(int s=0; s<Scanline->NumIntersections; ++s)
                         {
-                                triangle_intersection *Intersection = &(Scanline->Intersections[s]);
+                                gs_raster_triangle_intersection *Intersection = &(Scanline->Intersections[s]);
 
                                 if(Intersection->X == Col)
                                 {
-                                        triangle *Triangle;
+                                        gs_raster_triangle *Triangle;
 
                                         if(TriangleStackFind(CurrentTriangle, Intersection->Triangle))
                                         {
@@ -502,8 +504,8 @@ Rasterize(int *Pixels, int Width, int Height, scanline *Scanlines, triangle Tria
                         }
 
                         // TODO(AARON): This may be a NULL pointer.
-                        triangle *Triangle = TriangleStackTop(CurrentTriangle);
-                        uint32_t Color = 0x00000000;
+                        gs_raster_triangle *Triangle = TriangleStackTop(CurrentTriangle);
+                        gs_raster_color Color = 0x00000000;
                         if(Triangle)
                         {
                                 Color = ColorForTriangle(Triangles, Colors, NumTriangles, Triangle);

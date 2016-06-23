@@ -16,23 +16,23 @@ typedef int bool;
 bool
 StringEqual(char *LeftString, char *RightString, int MaxNumToMatch)
 {
-	int NumMatched = 0;
+        int NumMatched = 0;
 
-	for(;
-	    *LeftString == *RightString && NumMatched < MaxNumToMatch;
-	    LeftString++, RightString++, MaxNumToMatch++)
-	{
-		if(*LeftString == '\0') return(true);
-	}
-	return(false);
+        for(;
+            *LeftString == *RightString && NumMatched < MaxNumToMatch;
+            LeftString++, RightString++, MaxNumToMatch++)
+        {
+                if(*LeftString == '\0') return(true);
+        }
+        return(false);
 }
 
 int
 StringLength(char *String)
 {
-	char *P = String;
-	while(*P != '\0') P++;
-	return(P - String);
+        char *P = String;
+        while(*P != '\0') P++;
+        return(P - String);
 }
 
 /******************************************************************************
@@ -41,54 +41,54 @@ StringLength(char *String)
 
 struct buffer
 {
-	char *Start;
+        char *Start;
         char *Cursor;
-	size_t Capacity;
-	size_t Length;
+        size_t Capacity;
+        size_t Length;
 };
 typedef struct buffer buffer;
 
 void
 CopyBuffer(buffer *Source, buffer *Dest)
 {
-	Dest->Start = Source->Start;
-	Dest->Cursor = Source->Cursor;
-	Dest->Length = Source->Length;
-	Dest->Capacity = Source->Capacity;
+        Dest->Start = Source->Start;
+        Dest->Cursor = Source->Cursor;
+        Dest->Length = Source->Length;
+        Dest->Capacity = Source->Capacity;
 }
 
 buffer *
 BufferSet(buffer *Buffer, char *Cursor, size_t Length, size_t Capacity)
 {
-	Buffer->Start = Cursor;
-	Buffer->Cursor = Cursor;
-	Buffer->Length = Length;
-	Buffer->Capacity = Capacity;
-	return(Buffer);
+        Buffer->Start = Cursor;
+        Buffer->Cursor = Cursor;
+        Buffer->Length = Length;
+        Buffer->Capacity = Capacity;
+        return(Buffer);
 }
 
 bool
 CopyFileIntoBuffer(char *FileName, buffer *Mem)
 {
-	FILE *File = fopen(FileName, "r");
-	if(File)
-	{
-		fseek(File, 0, SEEK_END);
-		size_t FileSize = ftell(File);
-		if(FileSize + 1 > Mem->Capacity)
-		{
-			return(false);
-		}
+        FILE *File = fopen(FileName, "r");
+        if(File)
+        {
+                fseek(File, 0, SEEK_END);
+                size_t FileSize = ftell(File);
+                if(FileSize + 1 > Mem->Capacity)
+                {
+                        return(false);
+                }
 
-		fseek(File, 0, SEEK_SET);
-		fread(Mem->Cursor, 1, FileSize, File);
-		Mem->Cursor[FileSize] = 0;
-		Mem->Length = FileSize;
+                fseek(File, 0, SEEK_SET);
+                fread(Mem->Cursor, 1, FileSize, File);
+                Mem->Cursor[FileSize] = 0;
+                Mem->Length = FileSize;
 
-		fclose(File);
-	}
+                fclose(File);
+        }
 
-	return(true);
+        return(true);
 }
 
 size_t  /* Returns size of file in bytes plus one for trailing '\0'. */
@@ -96,35 +96,35 @@ FileSize(char *FileName)
 {
         FILE *File = fopen(FileName, "r");
         if(File)
-	{
-		fseek(File, 0, SEEK_END);
-		size_t FileSize = ftell(File);
-		fclose(File);
-		return(FileSize + 1); /* +1 for trailing null byte. */
-	}
+        {
+                fseek(File, 0, SEEK_END);
+                size_t FileSize = ftell(File);
+                fclose(File);
+                return(FileSize + 1); /* +1 for trailing null byte. */
+        }
 
-	return(0);
+        return(0);
 }
 
 void
 BufferNextLine(buffer *Buffer)
 {
-	while((Buffer->Cursor - Buffer->Start) < Buffer->Length)
-	{
-		if(*(Buffer->Cursor) == '\n')
-		{
-			++Buffer->Cursor;
-			break;
-		}
-		++Buffer->Cursor;
-	}
+        while((Buffer->Cursor - Buffer->Start) < Buffer->Length)
+        {
+                if(*(Buffer->Cursor) == '\n')
+                {
+                        ++Buffer->Cursor;
+                        break;
+                }
+                ++Buffer->Cursor;
+        }
 }
 
 bool
 IsEndOfBuffer(buffer *Buffer)
 {
-	bool Result = (Buffer->Cursor - Buffer->Start) >= Buffer->Length;
-	return(Result);
+        bool Result = (Buffer->Cursor - Buffer->Start) >= Buffer->Length;
+        return(Result);
 }
 
 /******************************************************************************
@@ -145,7 +145,7 @@ AbortWithMessage(const char *msg)
 }
 
 void
-CreateRasterDatastructuresFromFile(char *Filename, triangle **Triangles, color **Colors, int *Count)
+CreateRasterDatastructuresFromFile(char *Filename, gs_raster_triangle **Triangles, gs_raster_color **Colors, int *Count)
 {
         size_t AllocSize = FileSize(Filename);
         buffer FileContents;
@@ -168,12 +168,12 @@ CreateRasterDatastructuresFromFile(char *Filename, triangle **Triangles, color *
         }
         *Count = NumTriangles;
 
-        *Triangles = (triangle *)malloc(sizeof(triangle) * NumTriangles);
-        *Colors = (color *)malloc(sizeof(color) * NumTriangles);
+        *Triangles = (gs_raster_triangle *)malloc(sizeof(gs_raster_triangle) * NumTriangles);
+        *Colors = (gs_raster_color *)malloc(sizeof(gs_raster_color) * NumTriangles);
 
         for(int i=0; i<NumTriangles; i++)
         {
-                triangle *Triangle = &(*Triangles)[i];
+                gs_raster_triangle *Triangle = &(*Triangles)[i];
 
                 sscanf(FileContents.Cursor, "%f,%f %f,%f %f,%f %x",
                        &(Triangle->X1), &(Triangle->Y1),
@@ -181,7 +181,7 @@ CreateRasterDatastructuresFromFile(char *Filename, triangle **Triangles, color *
                        &(Triangle->X3), &(Triangle->Y3),
                        &(*Colors)[i]);
 
-                OrderForRaster(Triangle);
+                GsRasterReorderTriangle(Triangle);
                 BufferNextLine(&FileContents);
         }
 }
@@ -215,9 +215,9 @@ main(int ArgCount, char **Args)
         int DisplayBufferPitch;
         int *DisplayBuffer;
 
-	scanline *Scanlines;
-        triangle *Triangles;
-        color *Colors;
+        gs_raster_scanline *Scanlines;
+        gs_raster_triangle *Triangles;
+        gs_raster_color *Colors;
         int NumTriangles;
 
         DisplayBuffer = (int*)malloc(DISPLAY_WIDTH * DISPLAY_HEIGHT * 4);
@@ -237,13 +237,13 @@ main(int ArgCount, char **Args)
         if(Texture == NULL) AbortWithMessage(SDL_GetError());
 
         CreateRasterDatastructuresFromFile(Args[1], &Triangles, &Colors, &NumTriangles);
-        InitScanlines(&Scanlines, DISPLAY_HEIGHT, DISPLAY_WIDTH, NULL);
-        GenerateScanlines(Triangles, NumTriangles, Scanlines, DISPLAY_HEIGHT);
+        GsRasterInitScanlines(&Scanlines, DISPLAY_HEIGHT, DISPLAY_WIDTH, NULL);
+        GsRasterGenerateScanlines(Triangles, NumTriangles, Scanlines, DISPLAY_HEIGHT);
 
         SDL_LockTexture(Texture, NULL, (void**)&DisplayBuffer, &DisplayBufferPitch);
-	{
-		Rasterize(DisplayBuffer, DISPLAY_WIDTH, DISPLAY_HEIGHT, Scanlines, Triangles, Colors, NumTriangles);
-	}
+        {
+                GsRasterRasterize(DisplayBuffer, DISPLAY_WIDTH, DISPLAY_HEIGHT, Scanlines, Triangles, Colors, NumTriangles);
+        }
         SDL_UnlockTexture(Texture);
 
         bool Running = true;

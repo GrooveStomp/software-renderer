@@ -1,63 +1,63 @@
-#if !defined(_GS_RASTER_H)
-#define _GS_RASTER_H
+#if !defined(GS_RASTER)
+#define GS_RASTER
 
 #include <stdint.h>
 
-typedef uint32_t color;
+typedef uint32_t gs_raster_color;
 
-struct point2d
+struct gs_raster_point2d
 {
         float X;
         float Y;
 };
-typedef struct point2d point2d;
-typedef point2d vector2d;
+typedef struct gs_raster_point2d gs_raster_point2d;
+typedef gs_raster_point2d gs_raster_vector2d;
 
-struct triangle
+struct gs_raster_triangle
 {
         union
         {
-                point2d Point[3];
+                gs_raster_point2d Point[3];
                 struct
                 {
-                        point2d A;
-                        point2d B;
-                        point2d C;
+                        gs_raster_point2d A;
+                        gs_raster_point2d B;
+                        gs_raster_point2d C;
                 };
-		struct
-		{
-			float X1;
-			float Y1;
-			float X2;
-			float Y2;
-			float X3;
-			float Y3;
-		};
+                struct
+                {
+                        float X1;
+                        float Y1;
+                        float X2;
+                        float Y2;
+                        float X3;
+                        float Y3;
+                };
         };
 };
-typedef struct triangle triangle;
+typedef struct gs_raster_triangle gs_raster_triangle;
 
-struct triangle_intersection;
-typedef struct triangle_intersection triangle_intersection;
+struct gs_raster_triangle_intersection;
+typedef struct gs_raster_triangle_intersection gs_raster_triangle_intersection;
 
-struct scanline
+struct gs_raster_scanline
 {
-        triangle_intersection *Intersections;
+        gs_raster_triangle_intersection *Intersections;
         int NumIntersections; /* Actual number we have stored. */
         int Capacity; /* Total number we can store. */
 };
-typedef struct scanline scanline;
+typedef struct gs_raster_scanline gs_raster_scanline;
 
 void
-InitScanlines(scanline **Scanlines, int NumScanlines, int Capacity, void *Memory);
+GsRasterInitScanlines(gs_raster_scanline **Scanlines, int NumScanlines, int Capacity, void *Memory);
 
 void
-GenerateScanlines(triangle *Triangles, int NumTriangles, scanline *Scanlines, int NumScanlines);
+GsRasterGenerateScanlines(gs_raster_triangle *Triangles, int NumTriangles, gs_raster_scanline *Scanlines, int NumScanlines);
 
 void
-Rasterize(int *Pixels, int Width, int Height, scanline *Scanlines, triangle Triangles[], color Colors[], int NumTriangles);
+GsRasterRasterize(int *Pixels, int Width, int Height, gs_raster_scanline *Scanlines, gs_raster_triangle Triangles[], gs_raster_color Colors[], int NumTriangles);
 
 void
-OrderForRaster(triangle *Unordered);
+GsRasterReorderTriangle(gs_raster_triangle *Unordered);
 
-#endif /* _GS_RASTER_H */
+#endif /* GS_RASTER */
