@@ -10,7 +10,7 @@ typedef int bool;
 #define local_persist static
 #define global_variable static
 
-#ifdef GS_GRAPHICS_DEBUG
+#ifdef GS_RASTER_DEBUG
 #define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;}
 #else
 #define Assert(Expression)
@@ -117,6 +117,7 @@ GsRasterInitScanlines(gs_raster_scanline **Scanlines, int NumScanlines, int Capa
 struct gs_raster_triangle_stack
 {
         gs_raster_triangle **Stack;
+        int Capacity;
         int Head;
 };
 typedef struct gs_raster_triangle_stack gs_raster_triangle_stack;
@@ -144,22 +145,17 @@ ColorForTriangle(gs_raster_triangle *Triangles, gs_raster_color *Colors, int Cou
 // Triangle Stack Operations
 //------------------------------------------------------------------------------
 
-/* Memory can be NULL.  If NULL, allocate on the heap. If not NULL, then use
-   Memory. */
 void
 TriangleStackInit(gs_raster_triangle_stack **Stack, int Capacity, void *Memory)
 {
-        if(Memory == NULL)
-        {
-                int PointerArraySize = sizeof(gs_raster_triangle *) * Capacity;
-                Memory = malloc(sizeof(gs_raster_triangle_stack) + PointerArraySize);
-        }
+        Assert(Memory != NULL);
         *Stack = (gs_raster_triangle_stack *)Memory;
 
         gs_raster_triangle_stack *StackPointer = *Stack;
         void *MemoryOffset = (char *)Memory + sizeof(gs_raster_triangle_stack);
         StackPointer->Stack = (gs_raster_triangle **)MemoryOffset;
         StackPointer->Head = 0;
+        StackPointer->Capacity = Capacity;
 }
 
 bool
@@ -177,6 +173,7 @@ TriangleStackSize(gs_raster_triangle_stack *Stack)
 bool
 TriangleStackPush(gs_raster_triangle_stack *Stack, gs_raster_triangle *Object)
 {
+        Assert(Stack->Head < (Stack->Capacity + 1));
         ++Stack->Head;
         Stack->Stack[Stack->Head] = Object;
         return(true);
@@ -185,8 +182,7 @@ TriangleStackPush(gs_raster_triangle_stack *Stack, gs_raster_triangle *Object)
 gs_raster_triangle *
 TriangleStackPop(gs_raster_triangle_stack *Stack)
 {
-        if(Stack->Head <= 0) return(NULL);
-
+        Assert(Stack->Head > 0);
         gs_raster_triangle *Result = Stack->Stack[Stack->Head];
         --Stack->Head;
 
@@ -474,8 +470,14 @@ PutPixel(int *Pixels, int Width, int Height, int X, int Y, int NewPixel)
 void
 GsRasterRasterize(int *Pixels, int Width, int Height, gs_raster_scanline *Scanlines, gs_raster_triangle Triangles[], gs_raster_color Colors[], int NumTriangles)
 {
+        int TriangleStackAllocSize = 0;
+        {
+                int PointerArraySize = sizeof(gs_raster_triangle *) * Width;
+                TriangleStackAllocSize = sizeof(gs_raster_triangle_stack) + PointerArraySize;
+        }
+        void *TriangleStackMemory = alloca(TriangleStackAllocSize);
         gs_raster_triangle_stack *CurrentTriangle;
-        TriangleStackInit(&CurrentTriangle, Width, NULL);
+        TriangleStackInit(&CurrentTriangle, Width, TriangleStackMemory);
 
         for(int Row=0; Row<Height; Row++)
         {
