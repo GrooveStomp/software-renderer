@@ -11,7 +11,6 @@ struct gs_raster_point2d
         float Y;
 };
 typedef struct gs_raster_point2d gs_raster_point2d;
-typedef gs_raster_point2d gs_raster_vector2d;
 
 struct gs_raster_triangle
 {
@@ -64,7 +63,8 @@ typedef struct gs_raster_scanline gs_raster_scanline;
  *         destination pixel grid.
  */
 int
-GsRasterSizeRequiredForScanlines(int NumScanlines, int Capacity);
+GsRasterSizeRequiredForScanlines(
+	int NumScanlines, int Capacity);
 
 /*
  * Initializes the scanline list according to the given specifications.

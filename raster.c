@@ -1,6 +1,7 @@
 #include "raster.h"
-#include <stdlib.h> /* NULL */
+#include <stdlib.h> /* NULL, qsort */
 #include <alloca.h>
+#include <math.h> /* sqrt */
 
 typedef int bool;
 #define false 0
@@ -240,12 +241,27 @@ TriangleStackRemove(gs_raster_triangle_stack *Stack, gs_raster_triangle *Object)
 // Ray, Point and other similar operations
 //------------------------------------------------------------------------------
 
-gs_raster_point2d
-Add(gs_raster_point2d First, gs_raster_point2d Second)
+float
+VectorLength(vector2d V)
 {
-        gs_raster_point2d Result;
-        Result.X = First.X + Second.X;
-        Result.Y = First.Y + Second.Y;
+        float Result = sqrt((V.X * V.X) + (V.Y * V.Y));
+        return(Result);
+}
+
+vector2d
+VectorNormalize(vector2d V)
+{
+        float Factor = 1.0 / VectorLength(V);
+        vector2d Result;
+        Result.X = V.X * Factor;
+        Result.Y = V.Y * Factor;
+        return(Result);
+}
+
+float
+VectorDotProduct(vector2d A, vector2d B)
+{
+        float Result = (A.X * B.X) + (A.Y * B.Y);
         return(Result);
 }
 
@@ -255,6 +271,26 @@ Apply(gs_raster_point2d Point, float T)
         gs_raster_point2d Result;
         Result.X = Point.X * T;
         Result.Y = Point.Y * T;
+        return(Result);
+}
+
+vector2d
+VectorProjection(vector2d Source, vector2d Destination)
+{
+        float DestLength = VectorLength(Destination);
+        float DotProduct = VectorDotProduct(Source, Destination);
+        float Scalar = DotProduct / (DestLength * DestLength);
+        vector2d Result = Apply(Destination, Scalar);
+
+        return(Result);
+}
+
+gs_raster_point2d
+Add(gs_raster_point2d First, gs_raster_point2d Second)
+{
+        gs_raster_point2d Result;
+        Result.X = First.X + Second.X;
+        Result.Y = First.Y + Second.Y;
         return(Result);
 }
 
@@ -365,29 +401,86 @@ PositiveXVectorAtHeight(int Height)
 bool
 HasIntersection(ray2d Ray, line_segment Line)
 {
-        int A = Line.EndY - Ray.Y;
-        int B = Line.StartY - Ray.Y;
-        return(((A ^ B) < 0) || Line.EndY == Ray.Y || Line.StartY == Ray.Y);
+        vector2d LineDir = Subtract(Line.End, Line.Start);
+        LineDir = VectorNormalize(LineDir);
+
+        float DeltaY = Ray.Y - Line.StartY;
+        float Factor = DeltaY / LineDir.Y;
+        vector2d Delta = Apply(LineDir, Factor);
+        vector2d Point = Add(Line.Start, Delta);
+
+        float LesserX, LesserY, GreaterX, GreaterY;
+        if(Line.StartX < Line.EndX)
+        {
+                LesserX = Line.StartX;
+                GreaterX = Line.EndX;
+        }
+        else
+        {
+                LesserX = Line.EndX;
+                GreaterX = Line.StartX;
+        }
+
+        if(Line.StartY < Line.EndY)
+        {
+                LesserY = Line.StartY;
+                GreaterY = Line.EndY;
+        }
+        else
+        {
+                LesserY = Line.EndY;
+                GreaterY = Line.StartY;
+        }
+
+        bool Result = ((Point.X >= LesserX) &&
+                       (Point.X <= GreaterX) &&
+                       (Point.Y >= LesserY) &&
+                       (Point.Y <= GreaterY));
+
+        return(Result);
 }
 
 float
 Intersect(ray2d Ray, line_segment Line)
 {
-        vector2d Slope = Subtract(Line.End, Line.Start);
-        bool IsNegative = (Slope.X < 0 || Slope.Y < 0);
+        vector2d LineDir = Subtract(Line.End, Line.Start);
+        LineDir = VectorNormalize(LineDir);
 
-        float DeltaY = abs(Line.StartY - Ray.Y);
+        float DeltaY = Ray.Y - Line.StartY;
+        float Factor = DeltaY / LineDir.Y;
+        vector2d Delta = Apply(LineDir, Factor);
+        vector2d Point = Add(Line.Start, Delta);
 
-        float Term2 = (DeltaY * (Slope.X / Slope.Y));
-
-        if(IsNegative)
+        float LesserX, LesserY, GreaterX, GreaterY;
+        if(Line.StartX < Line.EndX)
         {
-                return(Line.StartX - Term2);
+                LesserX = Line.StartX;
+                GreaterX = Line.EndX;
         }
         else
         {
-                return(Line.StartX + Term2);
+                LesserX = Line.EndX;
+                GreaterX = Line.StartX;
         }
+
+        if(Line.StartY < Line.EndY)
+        {
+                LesserY = Line.StartY;
+                GreaterY = Line.EndY;
+        }
+        else
+        {
+                LesserY = Line.EndY;
+                GreaterY = Line.StartY;
+        }
+
+        bool Hit = ((Point.X >= LesserX) &&
+                    (Point.X <= GreaterX) &&
+                    (Point.Y >= LesserY) &&
+                    (Point.Y <= GreaterY));
+        Assert(Hit);
+
+        return(Point.X);
 }
 
 int
@@ -418,33 +511,19 @@ GsRasterGenerateScanlines(gs_raster_triangle *Triangles, int NumTriangles, gs_ra
                 {
                         gs_raster_triangle *Triangle = &Triangles[Index];
                         gs_raster_triangle_edges Edges = FromTriangle(*Triangle);
+                        int NumIntersections = 0;
 
-                        int NumTriangleIntersections = 0;
-
-                        for(int Index=0; Index < 3; ++Index)
+                        for(int Index = 0; Index < 3; Index++)
                         {
-                                line_segment Edge = FromPoints(Edges.Edges[Index].Start, Edges.Edges[Index].End);
+                                line_segment Edge = FromEdge(Edges.Edges[Index]);
+                                if(!HasIntersection(Ray, Edge)) continue;
+                                if(NumIntersections >= 2) continue;
+                                NumIntersections++;
 
-                                if(HasIntersection(Ray, Edge))
-                                {
-                                        // NOTE(AARON):
-                                        // For a given gs_raster_triangle we expect to only have two intersections, max.
-                                        // More than this causes rendering artifacts because any two edges
-                                        // probably share a vertex. When a vertex is shared, then then the
-                                        // intersection points get recalculated, which will cause problems
-                                        // at rasterization.
-                                        ++NumTriangleIntersections;
-                                        if(NumTriangleIntersections > 2)
-                                        {
-                                                continue;
-                                        }
-
-                                        float X = Intersect(Ray, Edge);
-                                        gs_raster_triangle_intersection *Intersection = &Scanline->Intersections[Scanline->NumIntersections];
-                                        Intersection->Triangle = Triangle;
-                                        Intersection->X = X;
-                                        Scanline->NumIntersections++;
-                                }
+                                gs_raster_triangle_intersection *Intersection = &Scanline->Intersections[Scanline->NumIntersections];
+                                Intersection->Triangle = Triangle;
+                                Intersection->X = Intersect(Ray, Edge);
+                                Scanline->NumIntersections++;
                         }
                 }
 
@@ -485,24 +564,19 @@ GsRasterRasterize(int *Pixels, int Width, int Height, gs_raster_scanline *Scanli
 
                 for(int Col=0; Col<Width; Col++)
                 {
-
                         for(int s=0; s<Scanline->NumIntersections; ++s)
                         {
+                                gs_raster_triangle *Triangle;
                                 gs_raster_triangle_intersection *Intersection = &(Scanline->Intersections[s]);
+                                if(Intersection->X != Col) continue;
 
-                                if(Intersection->X == Col)
+                                if(TriangleStackFind(CurrentTriangle, Intersection->Triangle))
                                 {
-                                        gs_raster_triangle *Triangle;
-
-                                        if(TriangleStackFind(CurrentTriangle, Intersection->Triangle))
-                                        {
-                                                TriangleStackRemove(CurrentTriangle, Intersection->Triangle);
-                                        }
-                                        else
-                                        {
-                                                TriangleStackPush(CurrentTriangle, Intersection->Triangle);
-                                        }
-
+                                        TriangleStackRemove(CurrentTriangle, Intersection->Triangle);
+                                }
+                                else
+                                {
+                                        TriangleStackPush(CurrentTriangle, Intersection->Triangle);
                                 }
                         }
 
