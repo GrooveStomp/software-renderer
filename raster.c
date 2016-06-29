@@ -515,6 +515,7 @@ GsRasterGenerateScanlines(gs_raster_triangle *Triangles, int NumTriangles, gs_ra
                         float TempIntersections[3];
                         int Count = 0;
 
+                        /* First collect all actual intersections. */
                         for(int EdgeIndex = 0; EdgeIndex < 3; EdgeIndex++)
                         {
                                 line_segment Edge = FromEdge(Edges.Edges[EdgeIndex]);
@@ -524,6 +525,7 @@ GsRasterGenerateScanlines(gs_raster_triangle *Triangles, int NumTriangles, gs_ra
                                 Count++;
                         }
 
+                        /* We may have duplicate intersections, so let's ignore those. */
                         int Index = 0;
                         if(Count == 3)
                         {
@@ -538,6 +540,7 @@ GsRasterGenerateScanlines(gs_raster_triangle *Triangles, int NumTriangles, gs_ra
                                 }
                         }
 
+                        /* Now copy the remaining unique intersections. */
                         for(; Index < Count; Index++)
                         {
                                 gs_raster_triangle_intersection *Intersection = &Intersections[Scanline->NumIntersections];
