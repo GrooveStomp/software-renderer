@@ -512,45 +512,39 @@ GsRasterGenerateScanlines(gs_raster_triangle *Triangles, int NumTriangles, gs_ra
                 {
                         gs_raster_triangle *Triangle = &Triangles[Index];
                         gs_raster_triangle_edges Edges = FromTriangle(*Triangle);
-                        int NumIntersections = 0;
                         float TempIntersections[3];
+                        int Count = 0;
 
-                        for(int Index = 0; Index < 3; Index++)
+                        for(int EdgeIndex = 0; EdgeIndex < 3; EdgeIndex++)
                         {
-                                line_segment Edge = FromEdge(Edges.Edges[Index]);
+                                line_segment Edge = FromEdge(Edges.Edges[EdgeIndex]);
                                 if(!HasIntersection(Ray, Edge)) continue;
-                                if(NumIntersections >= 2) continue;
-                                NumIntersections++;
 
-                                TempIntersections[Index] = Intersect(Ray, Edge);
+                                TempIntersections[Count] = Intersect(Ray, Edge);
+                                Count++;
+                        }
+
+                        int Index = 0;
+                        if(Count == 3)
+                        {
+                                if((TempIntersections[0] == TempIntersections[1]) ||
+                                   (TempIntersections[0] == TempIntersections[2]))
+                                {
+                                        Index++;
+                                }
+                                else
+                                {
+                                        Count--;
+                                }
+                        }
+
+                        for(; Index < Count; Index++)
+                        {
                                 gs_raster_triangle_intersection *Intersection = &Intersections[Scanline->NumIntersections];
                                 Intersection->Triangle = Triangle;
                                 Intersection->X = TempIntersections[Index];
                                 Scanline->NumIntersections++;
                         }
-
-                        /* int Index = 0; */
-                        /* if(Count > 2) { Count = 2; } */
-                        /* if(Count > 2) */
-                        /* { */
-                        /*         if((TempIntersections[0] == TempIntersections[1]) || */
-                        /*            (TempIntersections[0] == TempIntersections[2])) */
-                        /*         { */
-                        /*                 Index++; */
-                        /*         } */
-                        /*         else */
-                        /*         { */
-                        /*                 Count--; */
-                        /*         } */
-                        /* } */
-
-                        /* for(; Index < Count; Index++) */
-                        /* { */
-                        /*         gs_raster_triangle_intersection *Intersection = &Intersections[Scanline->NumIntersections]; */
-                        /*         Intersection->Triangle = Triangle; */
-                        /*         Intersection->X = TempIntersections[Index]; */
-                        /*         Scanline->NumIntersections++; */
-                        /* } */
                 }
 
                 qsort(Scanline->Intersections,
